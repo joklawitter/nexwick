@@ -96,3 +96,82 @@ fn test_get_label_returns_none_for_invalid_index() {
     assert_eq!(map.get_label(0), None);
 }
 
+// ============= Iterator Tests =============
+
+#[test]
+fn test_post_order_iter_visits_children_before_parents() {
+    // Build tree: ((A:1.0,B:1.0):0.5,C:1.5):0.0;
+    let mut tree = Tree::new(3);
+    let a = tree.add_leaf(Some(BranchLength::new(1.0)), 0);
+    let b = tree.add_leaf(Some(BranchLength::new(1.0)), 1);
+    let c = tree.add_leaf(Some(BranchLength::new(1.5)), 2);
+    let internal = tree.add_internal_vertex((a, b), Some(BranchLength::new(0.5)));
+    let root = tree.add_root((internal, c));
+
+    let visited: Vec<_> = tree.post_order_iter()
+        .map(|v| v.index())
+        .collect();
+
+    // In post-order: leaves first, then internal, then root
+    assert_eq!(visited.len(), 5);
+
+    // Leaves should come before internal node
+    let a_pos = visited.iter().position(|&idx| idx == a).unwrap();
+    let b_pos = visited.iter().position(|&idx| idx == b).unwrap();
+    let c_pos = visited.iter().position(|&idx| idx == c).unwrap();
+    let internal_pos = visited.iter().position(|&idx| idx == internal).unwrap();
+    let root_pos = visited.iter().position(|&idx| idx == root).unwrap();
+
+    assert!(a_pos < internal_pos);
+    assert!(b_pos < internal_pos);
+    assert!(internal_pos < root_pos);
+    assert!(c_pos < root_pos);
+
+    // Root should be last
+    assert_eq!(visited[4], root);
+}
+
+#[test]
+fn test_pre_order_iter_visits_parents_before_children() {
+    // Build tree: ((A:1.0,B:1.0):0.5,C:1.5):0.0;
+    let mut tree = Tree::new(3);
+    let a = tree.add_leaf(Some(BranchLength::new(1.0)), 0);
+    let b = tree.add_leaf(Some(BranchLength::new(1.0)), 1);
+    let c = tree.add_leaf(Some(BranchLength::new(1.5)), 2);
+    let internal = tree.add_internal_vertex((a, b), Some(BranchLength::new(0.5)));
+    let root = tree.add_root((internal, c));
+
+    let visited: Vec<_> = tree.pre_order_iter()
+        .map(|v| v.index())
+        .collect();
+
+    // In pre-order: root first, then children
+    assert_eq!(visited.len(), 5);
+
+    let a_pos = visited.iter().position(|&idx| idx == a).unwrap();
+    let b_pos = visited.iter().position(|&idx| idx == b).unwrap();
+    let c_pos = visited.iter().position(|&idx| idx == c).unwrap();
+    let internal_pos = visited.iter().position(|&idx| idx == internal).unwrap();
+    let root_pos = visited.iter().position(|&idx| idx == root).unwrap();
+
+    // Root should be first
+    assert_eq!(visited[0], root);
+
+    // Parent before children
+    assert!(root_pos < internal_pos);
+    assert!(root_pos < c_pos);
+    assert!(internal_pos < a_pos);
+    assert!(internal_pos < b_pos);
+}
+
+#[test]
+fn test_iter_on_empty_tree() {
+    let tree = Tree::new(2);
+
+    let post_count = tree.post_order_iter().count();
+    let pre_count = tree.pre_order_iter().count();
+
+    assert_eq!(post_count, 0);
+    assert_eq!(pre_count, 0);
+}
+

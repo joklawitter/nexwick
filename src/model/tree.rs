@@ -325,6 +325,52 @@ impl Tree {
         self.vertices.len()
     }
 
+    /// Returns an iterator over the tree in post-order (children before parents).
+    ///
+    /// Post-order traversal visits each vertex's children before visiting the vertex itself.
+    /// This is useful for computing heights, aggregating data from leaves upward, etc.
+    ///
+    /// # Example
+    /// ```
+    /// use nexus_parser::model::tree::{Tree, LeafLabelMap};
+    /// use nexus_parser::model::vertex::BranchLength;
+    ///
+    /// let mut tree = Tree::new(2);
+    /// let mut labels = LeafLabelMap::new(2);
+    /// let a = tree.add_leaf(Some(BranchLength::new(1.0)), labels.get_or_insert("A"));
+    /// let b = tree.add_leaf(Some(BranchLength::new(1.0)), labels.get_or_insert("B"));
+    /// tree.add_root((a, b));
+    ///
+    /// let indices: Vec<_> = tree.post_order_iter().map(|v| v.index()).collect();
+    /// // Leaves come before root
+    /// ```
+    pub fn post_order_iter(&self) -> PostOrderIter<'_> {
+        PostOrderIter::new(self)
+    }
+
+    /// Returns an iterator over the tree in pre-order (parents before children).
+    ///
+    /// Pre-order traversal visits each vertex before visiting its children.
+    /// This is useful for propagating data from root to leaves.
+    ///
+    /// # Example
+    /// ```
+    /// use nexus_parser::model::tree::{Tree, LeafLabelMap};
+    /// use nexus_parser::model::vertex::BranchLength;
+    ///
+    /// let mut tree = Tree::new(2);
+    /// let mut labels = LeafLabelMap::new(2);
+    /// let a = tree.add_leaf(Some(BranchLength::new(1.0)), labels.get_or_insert("A"));
+    /// let b = tree.add_leaf(Some(BranchLength::new(1.0)), labels.get_or_insert("B"));
+    /// tree.add_root((a, b));
+    ///
+    /// let indices: Vec<_> = tree.pre_order_iter().map(|v| v.index()).collect();
+    /// // Root comes before leaves
+    /// ```
+    pub fn pre_order_iter(&self) -> PreOrderIter<'_> {
+        PreOrderIter::new(self)
+    }
+
     /// Prints a visual representation of the tree to the console.
     ///
     /// # Arguments
@@ -577,5 +623,85 @@ impl std::ops::Index<LabelIndex> for LeafLabelMap {
 
     fn index(&self, index: LabelIndex) -> &Self::Output {
         &self.labels[index]
+    }
+}
+
+/// Iterator for post-order traversal (children before parents).
+///
+/// This iterator uses a stack-based approach to traverse the tree without recursion.
+/// Each vertex is visited after all its descendants have been visited.
+pub struct PostOrderIter<'a> {
+    tree: &'a Tree,
+    stack: Vec<(TreeIndex, bool)>, // (index, children_visited)
+}
+
+impl<'a> PostOrderIter<'a> {
+    fn new(tree: &'a Tree) -> Self {
+        let mut stack = Vec::new();
+        if tree.is_root_set() {
+            stack.push((tree.root_index, false));
+        }
+        PostOrderIter { tree, stack }
+    }
+}
+
+impl<'a> Iterator for PostOrderIter<'a> {
+    type Item = &'a Vertex;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        while let Some((index, children_visited)) = self.stack.pop() {
+            let vertex = &self.tree[index];
+
+            if children_visited || vertex.is_leaf() {
+                // Either we've already processed children, or this is a leaf
+                return Some(vertex);
+            } else {
+                // Mark this vertex as "children will be visited"
+                self.stack.push((index, true));
+
+                // Push children (right first, so left is processed first)
+                if let Some((left, right)) = vertex.children() {
+                    self.stack.push((right, false));
+                    self.stack.push((left, false));
+                }
+            }
+        }
+        None
+    }
+}
+
+/// Iterator for pre-order traversal (parents before children).
+///
+/// This iterator uses a stack-based approach to traverse the tree without recursion.
+/// Each vertex is visited before any of its descendants.
+pub struct PreOrderIter<'a> {
+    tree: &'a Tree,
+    stack: Vec<TreeIndex>,
+}
+
+impl<'a> PreOrderIter<'a> {
+    fn new(tree: &'a Tree) -> Self {
+        let mut stack = Vec::new();
+        if tree.is_root_set() {
+            stack.push(tree.root_index);
+        }
+        PreOrderIter { tree, stack }
+    }
+}
+
+impl<'a> Iterator for PreOrderIter<'a> {
+    type Item = &'a Vertex;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        let index = self.stack.pop()?;
+        let vertex = &self.tree[index];
+
+        // Push children onto stack (right first, so left is processed first)
+        if let Some((left, right)) = vertex.children() {
+            self.stack.push(right);
+            self.stack.push(left);
+        }
+
+        Some(vertex)
     }
 }
