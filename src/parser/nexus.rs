@@ -1,7 +1,7 @@
 use crate::model::tree::{LeafLabelMap, Tree};
 use crate::parser::byte_parser::ByteParser;
 use crate::parser::byte_parser::ConsumeMode::{Exclusive, Inclusive};
-use crate::parser::newick::{parse_newick_with_resolver, LabelResolver};
+use crate::parser::newick::{LabelResolver, NewickParser};
 use crate::parser::parsing_error::ParsingError;
 use std::collections::HashMap;
 
@@ -18,6 +18,7 @@ pub enum NexusBlock {
     Sets,
     Assumptions,
     UnknownBlock(String),
+    Other,
 }
 
 impl NexusBlock {
@@ -37,25 +38,25 @@ impl NexusBlock {
 }
 
 pub fn parse_nexus(parser: &mut ByteParser) -> Result<(Vec<Tree>, LeafLabelMap), ParsingError> {
-    println!("Parsing nexus file.");
+    // println!("Parsing nexus file.");
 
     // Parse and verify header
     parse_nexus_header(parser)?;
-    println!("Parsing header successful.");
+    // println!("Parsing header successful.");
 
     // Skip until TAXA block and parse it
-    println!("Parsing taxa block...");
+    // println!("Parsing taxa block...");
     skip_until_block(parser, NexusBlock::Taxa)?;
-    let (num_taxa, mut label_map) = parse_taxa_block(parser)?;
-    println!("... successful.");
-    println!("Num taxa: {}", num_taxa);
-    println!("{}", label_map);
+    let (num_taxa, label_map) = parse_taxa_block(parser)?;
+    // println!("... successful.");
+    // println!("Num taxa: {}", num_taxa);
+    // println!("{}", label_map);
 
     // Skip until TREES block and parse it
-    println!("Parsing trees block...");
+    // println!("Parsing trees block...");
     skip_until_block(parser, NexusBlock::Trees)?;
-    let trees = parse_tree_block(parser, num_taxa, &mut label_map)?;
-    println!("... successful.");
+    let (trees, label_map) = parse_tree_block(parser, num_taxa, label_map)?;
+    // println!("... successful.");
 
     Ok((trees, label_map))
 }
@@ -133,7 +134,6 @@ fn skip_to_block_end(parser: &mut ByteParser) -> Result<(), ParsingError> {
 ///   - Terminated by semicolon
 ///   - Comments allowed
 /// * Comments allowed outside the two commands
-///
 ///
 /// # Errors
 /// Return [ParsingError::UnexpectedEOF] if block, command, or comment not properly closed,
@@ -251,40 +251,37 @@ fn parse_taxa_block_labels(parser: &mut ByteParser, num_taxa: usize) -> Result<L
 ///   - Each pair is separated by a comma, optional whitespace and comments
 ///   - Only one mapping per taxon allowed, either
 ///   - Neither full nor short labels contain whitespace
-fn parse_tree_block(parser: &mut ByteParser, num_leaves: usize, leaf_label_map: &mut LeafLabelMap) -> Result<Vec<Tree>, ParsingError> {
+fn parse_tree_block(parser: &mut ByteParser, num_leaves: usize, leaf_label_map: LeafLabelMap)
+                    -> Result<(Vec<Tree>, LeafLabelMap), ParsingError> {
     let mut trees: Vec<Tree> = Vec::new();
 
     // 1. Try to parse TRANSLATE command
-    println!("... first, parsing TRANSLATE command");
     let map = parse_tree_block_translate(parser, num_leaves)?;
+
+
     // ... and based on whether it exists, pick the appropriate label resolver
-    print!("           obtaining LabelResolver of type ");
-    let mut resolver = match map {
+    let resolver = match map {
         None => {
-            println!("Label-2-Index");
-            LabelResolver::new_label_to_index(leaf_label_map)
+            LabelResolver::new_verbatim_labels_resolver(leaf_label_map)
         }
-        Some(m) => {
-            // Check that the labels are the same as in the TAXA block
-            println!("Key-2-Label-2-Index");
-            for label in m.values() {
-                if leaf_label_map.get_index(label).is_none() {
-                    return Err(ParsingError::invalid_trees_block(parser, format!("Label {label} provided in translate not among labels in TAXA block.")));
-                }
+        Some(map) => {
+            // Assert that labels match those provided in TAXA block
+            if !leaf_label_map.check_consistency_with_translation(&map) {
+                return Err(ParsingError::invalid_translate_command(parser));
             }
-            LabelResolver::new_key_to_label_to_index(m, leaf_label_map)
+
+            LabelResolver::new_nexus_labels_resolver(map, leaf_label_map)
         }
     };
-    println!("{resolver}");
 
     // 2. Parse trees
-    println!("... second, parsing trees");
-    parse_tree_block_trees(parser, &mut trees, num_leaves, &mut resolver)?;
+    let leaf_label_map = parse_tree_block_trees(parser, &mut trees, num_leaves, resolver)?;
 
     // 3. Consume rest including of block including "END;"
     skip_to_block_end(parser)?;
 
-    Ok(trees)
+
+    Ok((trees, leaf_label_map))
 }
 
 /// Helper method to parse TREES block, responsible for parsing `TRANSLATE` command.
@@ -343,9 +340,11 @@ fn parse_tree_block_translate(parser: &mut ByteParser, num_leaves: usize) -> Res
 
 /// Helper method to parse TREES block, responsible for parsing 'TREE' entries.
 /// Returns all trees parsed with labels resolved with given resolver.
-fn parse_tree_block_trees(parser: &mut ByteParser, trees: &mut Vec<Tree>, num_leaves: usize, resolver: &mut LabelResolver)
-                          -> Result<(), ParsingError> {
-    let mut tree_count = 0;
+fn parse_tree_block_trees(parser: &mut ByteParser, trees: &mut Vec<Tree>, num_leaves: usize, resolver: LabelResolver)
+                          -> Result<LeafLabelMap, ParsingError> {
+    let mut newick_parser = NewickParser::new().with_num_leaves(num_leaves).with_resolver(resolver);
+
+    // let mut tree_count = 0;
     loop {
         parser.skip_comment_and_whitespace()?;
 
@@ -372,19 +371,22 @@ fn parse_tree_block_trees(parser: &mut ByteParser, trees: &mut Vec<Tree>, num_le
         parser.skip_comment_and_whitespace()?;
 
         // Parse tree
-        let tree = parse_newick_with_resolver(parser, num_leaves, resolver)?.with_name(name);
-        tree_count += 1;
-        print!(".");
+        let tree = newick_parser.parse(parser)?.with_name(name);
 
-        if tree_count % 100 == 0 {
-            println!(" ({tree_count})");
-        }
+        // Verbose information
+        // tree_count += 1;
+        // if tree_count % 10 == 0 {
+        //     print!(".");
+        // }
+        // if tree_count % 1000 == 0 {
+        //     println!(" ({tree_count})");
+        // }
 
         // Store tree
         trees.push(tree);
     }
 
-    Ok(())
+    Ok(newick_parser.into_leaf_label_map())
 }
 
 

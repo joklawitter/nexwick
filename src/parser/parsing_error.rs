@@ -10,10 +10,11 @@ pub enum ParsingErrorType {
     InvalidBlockName,
     InvalidTaxaBlock(String),
     InvalidTreesBlock(String),
+    InvalidTranslateCommand,
     UnclosedComment,
     InvalidNewickString(String),
     InvalidFormatting,
-    // ... more as needed
+    UnresolvedLabel(String),
 }
 
 /// Parsing error with contextual information (position and surrounding bytes)
@@ -24,13 +25,16 @@ pub struct ParsingError {
     context: String,
 }
 
+/// Default length of context provided by error from parser
+const DEFAULT_CONTEXT_LENGTH: usize = 50;
+
 impl ParsingError {
     /// Create a ParsingError from an error type and parser state
     pub fn from_parser(kind: ParsingErrorType, parser: &ByteParser) -> Self {
         Self {
             kind,
             position: parser.position(),
-            context: parser.get_context_as_string(50),
+            context: parser.get_context_as_string(DEFAULT_CONTEXT_LENGTH),
         }
     }
 
@@ -59,6 +63,11 @@ impl ParsingError {
         Self::from_parser(ParsingErrorType::InvalidTreesBlock(msg), parser)
     }
 
+    /// Convenience constructor for InvalidTranslateCommand
+    pub fn invalid_translate_command(parser: &mut ByteParser) -> Self {
+        Self::from_parser(ParsingErrorType::InvalidTranslateCommand, parser)
+    }
+
     /// Convenience constructor for UnclosedComment
     pub fn unclosed_comment(parser: &ByteParser) -> Self {
         Self::from_parser(ParsingErrorType::UnclosedComment, parser)
@@ -74,6 +83,11 @@ impl ParsingError {
         Self::from_parser(ParsingErrorType::InvalidFormatting, parser)
     }
 
+    /// Convenience constructor for Other error during parsing
+    pub fn unresolved_label(parser: &ByteParser, msg: String) -> Self {
+        Self::from_parser(ParsingErrorType::UnresolvedLabel(msg), parser)
+    }
+
     /// Get the error kind
     pub fn kind(&self) -> &ParsingErrorType {
         &self.kind
@@ -87,22 +101,24 @@ impl ParsingError {
 
 impl fmt::Display for ParsingError {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        // Write the main error message
+        // Main error message
         match &self.kind {
             ParsingErrorType::MissingNexusHeader => write!(f, "File does not start with #NEXUS header")?,
             ParsingErrorType::InvalidTaxaBlock(msg) => write!(f, "Invalid TAXA block format - {msg}")?,
             ParsingErrorType::InvalidTreesBlock(msg) => write!(f, "Invalid TREES block format - {msg}")?,
+            ParsingErrorType::InvalidTranslateCommand => write!(f, "Invalid TRANSLATE command - likely inconsistent with TAXA block")?,
             ParsingErrorType::UnclosedComment => write!(f, "Unclosed comment")?,
             ParsingErrorType::InvalidBlockName => write!(f, "Invalid block name")?,
             ParsingErrorType::InvalidNewickString(msg) => write!(f, "Invalid newick string: {}", msg)?,
             ParsingErrorType::UnexpectedEOF => write!(f, "Unexpected end of file")?,
             ParsingErrorType::InvalidFormatting => write!(f, "Invalid formatting")?,
+            ParsingErrorType::UnresolvedLabel(msg) => write!(f, "Could not resolve label - {msg}")?,
         }
 
-        // Add position information
+        // Additional position information
         write!(f, " at position {}", self.position)?;
 
-        // Add context if available
+        // Additional context if available
         if !self.context.is_empty() {
             write!(f, "\n  Context (next {} bytes): {}", self.context.len(), self.context)?;
         }

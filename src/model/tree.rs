@@ -538,6 +538,28 @@ impl LeafLabelMap {
     pub fn is_full(&self) -> bool {
         self.num_leaves == self.map.len()
     }
+
+    /// Checks whether the given HashMap is consistent with this map:
+    /// - Same length
+    /// - All labels in `translation` appear in this map
+    ///
+    ///# Arguments
+    ///* `translation` - Translation map (likely from Nexus TRANSLATE command) to test,
+    ///                  with leaf labels being the map's values
+    pub fn check_consistency_with_translation(&self, translation: &HashMap<String, String>) -> bool {
+        // Need to have same number of labels
+        if translation.len() != self.num_labels() {
+            return false;
+        }
+        // Each label in map needs to appear
+        for test_label in translation.values() {
+            if !self.contains_label(test_label) {
+                return false;
+            }
+        }
+
+        true
+    }
 }
 
 impl fmt::Display for LeafLabelMap {

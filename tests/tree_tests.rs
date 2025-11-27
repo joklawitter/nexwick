@@ -45,7 +45,7 @@ fn test_get_root_panics_on_empty_tree() {
 #[should_panic]
 fn test_get_vertex_out_of_bounds() {
     let tree = Tree::new(2);
-    let extinct = &tree[55];
+    let _ = &tree[55];
 }
 
 

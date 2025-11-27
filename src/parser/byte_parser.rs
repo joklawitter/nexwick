@@ -3,7 +3,7 @@ use crate::parser::parsing_error::ParsingError;
 
 /// A byte-by-byte parser for ASCII text with support for peeking, consuming, and pattern matching.
 ///
-/// `ByteParser` provides parsing operations for text-based formats, specifically targeting Newick and NEXUS.
+/// [ByteParser] provides parsing operations for text-based formats, specifically targeting Newick and NEXUS.
 /// It operates on byte slices and assumes ASCII encoding, offering both peek, consume,
 /// and skip operations with case-insensitive matching.
 ///
