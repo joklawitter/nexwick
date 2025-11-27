@@ -95,11 +95,29 @@ fn test_optional_branch_length() {
 }
 
 #[test]
-fn test_newick_with_comment() {
-    let newick_with_comment = "((A[Great Commentoran]:0.33,B[Pied Commentoran]:0.33):1.87,C:[King Commentoran]2.2):0.0";
+fn test_newick_with_comment_1() {
+    let newick_with_comment = "[A tree of] (([Shags!]A[Great Commentoran]:0.33,B[Pied Commentoran]:0.33):1.87,C:[King Commentoran]2.2):0.0;";
     let mut parser = ByteParser::from_str(newick_with_comment);
     let tree = NewickParser::new().with_num_leaves(3).parse(&mut parser);
-    assert!(tree.is_ok()); // TODO expected to fail as not implemented yet
+
+    if tree.is_err() {
+        eprintln!("Error parsing tree with comments: {:?}", tree.as_ref().err());
+    }
+
+    assert!(tree.is_ok());
+}
+
+#[test]
+fn test_newick_with_comment_2() {
+    let newick_with_comment = "[A tree of] ([Shags!] C:[King Commentoran] 2.2, (A[Great Commentoran]:0.33, B[Pied Commentoran]:0.33):1.87):0.0[The end.];";
+    let mut parser = ByteParser::from_str(newick_with_comment);
+    let tree = NewickParser::new().with_num_leaves(3).parse(&mut parser);
+
+    if tree.is_err() {
+        eprintln!("Error parsing tree with comments: {:?}", tree.as_ref().err());
+    }
+
+    assert!(tree.is_ok());
 }
 
 // --- TESTS DEALING WITH CORRUPT NEWICK STRINGS ---

@@ -433,7 +433,7 @@ impl<'a> ByteParser<'a> {
     /// # Errors
     /// Returns an error if quote parsing fails
     pub fn parse_label(&mut self, delimiters: &[u8]) -> Result<String, ParsingError> {
-        self.skip_whitespace();
+        self.skip_comment_and_whitespace()?;
 
         if self.peek() == Some(b'\'') {
             self.parse_quoted_label()

@@ -6,7 +6,7 @@ use std::collections::HashMap;
 use std::fmt;
 
 /// Newick label delimiters: parentheses, comma, colon, semicolon, whitespace
-const NEWICK_LABEL_DELIMITERS: &[u8] = b"(),:; \t\n\r";
+const NEWICK_LABEL_DELIMITERS: &[u8] = b"([,:; \n\t\r)]";
 
 /// Default guess for number of leaves, when unknown
 const DEFAULT_NUM_LEAVES_GUESS: usize = 10;
@@ -23,6 +23,31 @@ const DEFAULT_NUM_LEAVES_GUESS: usize = 10;
 /// * `with_annotations()` - Can be configured to parse vertex annotation instead of considering them comments,
 /// (e.g. extract `pop_size` and value from "A[&pop_size=0.123]"). (TODO!)
 /// * `with_resolver(resolver)` - Requires a [LabelResolver] if labels are not stored directly in newick strings.
+///
+/// # Format
+/// The Newick format has the following simple structure:
+/// * tree ::= vertex ';'
+/// * vertex ::= leaf | internal_vertex
+/// * internal_vertex ::= '(' vertex ',' vertex ')' [branch_length]
+/// * leaf ::= label [branch_length]
+/// * branch_length ::= ':' number
+///
+/// Furthermore:
+/// * Whitespace can occur between elements,
+///   just not within unquoted label or in branch_length
+/// * Even newlines can occur anywhere except in labels (quoted and unquoted)
+/// * Comments are square brackets and can occur anywhere where newlines are allowed
+///
+/// In the extended Newick format, there can be comment-like annotation:
+/// * `[@pop_size=0.543,color=blue]`
+/// For a leaf:
+/// * label [annotation] [branch_length]
+///   - Example: A[@pop_size=0.543]:2.1
+/// For an internal vertex and the root:
+/// * (children) [annotation] [branch_length]
+///   - Example: (A,B)[@pop_seize=0.345]:6.7
+///
+/// Also, there can be comments.
 ///
 /// # Example
 /// ```
@@ -118,7 +143,6 @@ impl NewickParser {
             self.num_leaves = 0;
         }
 
-        parser.skip_whitespace();
         self.parse_root(parser, &mut tree)?;
 
         // Having parsed a full tree, we now know the number of leaves in a tree
@@ -127,7 +151,15 @@ impl NewickParser {
         Ok(tree)
     }
 
+    /// Parses root of tree and adds it to tree:
+    /// - `(left, right)[:branch_length]`
+    /// - Skips leading comments and whitespace
+    /// - Calls `parser_children` to parse the children pair
+    ///
+    /// Equivalent to `parse_internal_vertex` but taking care of root specialities
     fn parse_root(&mut self, parser: &mut ByteParser, tree: &mut Tree) -> Result<(), ParsingError> {
+        parser.skip_comment_and_whitespace()?;
+
         let (left_index, right_index) = self.parser_children(parser, tree)?;
 
         // Root may have an optional branch length (which we ignore for now)
@@ -136,7 +168,7 @@ impl NewickParser {
         }
 
         // Consume the terminating semicolon
-        parser.skip_whitespace();
+        parser.skip_comment_and_whitespace()?;
         if !parser.consume_if(b';') {
             return Err(ParsingError::invalid_newick_string(
                 parser,
@@ -149,7 +181,15 @@ impl NewickParser {
         Ok(())
     }
 
+    /// Parses a vertex (either internal vertex or leaf) and returns its vertex:
+    /// - Skips leading comments and whitespace
+    /// - Dispatches to `parse_internal_vertex` if starts with `(`, otherwise `parse_leaf`
+    ///
+    /// # Returns
+    /// - [TreeIndex] of parsed internal vertex
+    /// - [ParsingError] if something went wrong
     fn parse_vertex(&mut self, parser: &mut ByteParser, tree: &mut Tree) -> Result<TreeIndex, ParsingError> {
+        parser.skip_comment_and_whitespace()?;
         if parser.peek_is(b'(') {
             self.parse_internal_vertex(parser, tree)
         } else {
@@ -157,14 +197,32 @@ impl NewickParser {
         }
     }
 
+    /// Parses internal vertex, adds it to tree, and returns its index:
+    /// - `(left, right)[:branch_length]`
+    /// - Calls `parser_children` to parse the children pair
+    ///
+    /// # Returns
+    /// - [TreeIndex] of parsed internal vertex
+    /// - [ParsingError] if something went wrong
     fn parse_internal_vertex(&mut self, parser: &mut ByteParser, tree: &mut Tree) -> Result<TreeIndex, ParsingError> {
         let (left_index, right_index) = self.parser_children(parser, tree)?;
+        // Annotation parsing will be added here.
         let branch_length = self.parse_branch_length(parser)?;
+
         let index = tree.add_internal_vertex((left_index, right_index), branch_length);
+
         Ok(index)
     }
 
+    /// Parses children pair `(left, right)` and returns their indices:
+    /// - Expects parser at opening `(`
+    ///   (caller should skip leading comments/whitespace)
+    ///
+    /// # Returns
+    /// - [TreeIndex]s of left and right child vertices
+    /// - [ParsingError] if something went wrong
     fn parser_children(&mut self, parser: &mut ByteParser, tree: &mut Tree) -> Result<(TreeIndex, TreeIndex), ParsingError> {
+        // Calling methods should have skipped comments and whitespace
         if !parser.consume_if(b'(') {
             return Err(ParsingError::invalid_newick_string(
                 parser,
@@ -173,6 +231,7 @@ impl NewickParser {
         }
         let left_index = self.parse_vertex(parser, tree)?;
 
+        parser.skip_comment_and_whitespace()?;
         if !parser.consume_if(b',') {
             return Err(ParsingError::invalid_newick_string(
                 parser,
@@ -181,6 +240,7 @@ impl NewickParser {
         }
         let right_index = self.parse_vertex(parser, tree)?;
 
+        parser.skip_comment_and_whitespace()?;
         if !parser.consume_if(b')') {
             return Err(ParsingError::invalid_newick_string(
                 parser,
@@ -191,12 +251,22 @@ impl NewickParser {
         Ok((left_index, right_index))
     }
 
+    /// Parses leaf vertex and adds it to tree:
+    /// - `label[:branch_length]`
+    /// - Expects parser at start of label
+    ///   (caller should skip leading comments/whitespace)
+    /// - Resolves label via the configured resolver
+    ///
+    /// # Returns
+    /// - [TreeIndex] of parsed leaf
+    /// - [ParsingError] if something went wrong
     fn parse_leaf(&mut self, parser: &mut ByteParser, tree: &mut Tree) -> Result<TreeIndex, ParsingError> {
         let label = parser.parse_label(NEWICK_LABEL_DELIMITERS)?;
+        // Annotation parsing will be added here.
         let label_index = self.resolver.resolve_label(&*label, parser)?;
         let branch_length = self.parse_branch_length(parser)?;
-        let index = tree.add_leaf(branch_length, label_index);
 
+        let index = tree.add_leaf(branch_length, label_index);
         if !self.know_num_leaves {
             self.num_leaves += 1;
         }
@@ -204,10 +274,21 @@ impl NewickParser {
         Ok(index)
     }
 
+    /// Parses optional branch length `[:number]`:
+    /// - Skips comments/whitespace before and after `:`
+    /// - Supports scientific notation (e.g., `1.5e-10`)
+    ///
+    /// # Returns
+    /// - [BranchLength] if found branch length and was able to parse it
+    /// - `None` if found no branch length
+    /// - [ParsingError] if it couldn't parse branch length value
     fn parse_branch_length(&mut self, parser: &mut ByteParser) -> Result<Option<BranchLength>, ParsingError> {
+        // Whitespace/Comments : Whitespace/Comments
+        parser.skip_comment_and_whitespace()?;
         if !parser.consume_if(b':') {
             return Ok(None);
         }
+        parser.skip_comment_and_whitespace()?;
 
         let mut branch_length_str = String::new();
         while let Some(b) = parser.peek() {

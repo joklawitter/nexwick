@@ -270,7 +270,14 @@ fn parse_tree_block(parser: &mut ByteParser, num_leaves: usize, leaf_label_map: 
                 return Err(ParsingError::invalid_translate_command(parser));
             }
 
-            LabelResolver::new_nexus_labels_resolver(map, leaf_label_map)
+            // Check if all keys are integers to use the more efficient NexusIntegerLabels resolver
+            let all_keys_are_integers = map.keys().all(|key| key.parse::<usize>().is_ok());
+
+            if all_keys_are_integers {
+                LabelResolver::new_nexus_integer_labels_resolver(map, leaf_label_map)
+            } else {
+                LabelResolver::new_nexus_labels_resolver(map, leaf_label_map)
+            }
         }
     };
 
