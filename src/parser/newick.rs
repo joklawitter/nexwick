@@ -20,9 +20,11 @@ const DEFAULT_NUM_LEAVES_GUESS: usize = 10;
 /// # Configuration
 /// * `with_num_leaves(num_leaves)` - Can be configured with number of leaves in trees to parse,
 ///    otherwise it is inferred from the first parsed tree and then stored.
-/// * `with_annotations()` - Can be configured to parse vertex annotation instead of considering them comments,
-/// (e.g. extract `pop_size` and value from "A[&pop_size=0.123]"). (TODO!)
 /// * `with_resolver(resolver)` - Requires a [LabelResolver] if labels are not stored directly in newick strings.
+/// * Plan to include in the future `with_annotations()`, so that it can be configured
+///   to parse vertex annotation instead of considering them comments,
+///   (e.g. extract `pop_size` and value from "A[&pop_size=0.123]").
+///   For now, annotation remains unsopported.
 ///
 /// # Format
 /// The Newick format has the following simple structure:
@@ -46,8 +48,7 @@ const DEFAULT_NUM_LEAVES_GUESS: usize = 10;
 /// For an internal vertex and the root:
 /// * (children) [annotation] [branch_length]
 ///   - Example: (A,B)[@pop_seize=0.345]:6.7
-///
-/// Also, there can be comments.
+/// These are considered comments for now and skipped.
 ///
 /// # Example
 /// ```
@@ -65,8 +66,8 @@ const DEFAULT_NUM_LEAVES_GUESS: usize = 10;
 pub struct NewickParser {
     know_num_leaves: bool,
     num_leaves: usize,
-    parse_annotation: bool,
     resolver: LabelResolver,
+    // parse_annotation: bool,
 }
 
 impl NewickParser {
@@ -80,8 +81,8 @@ impl NewickParser {
         Self {
             know_num_leaves: false,
             num_leaves: DEFAULT_NUM_LEAVES_GUESS,
-            parse_annotation: false,
             resolver: LabelResolver::None,
+            // parse_annotation: false,
         }
     }
 
@@ -95,11 +96,11 @@ impl NewickParser {
         self
     }
 
-    /// Enables parsing of tree annotations (TODO! - currently not implemented).
-    pub fn with_annotations(mut self) -> Self {
-        self.parse_annotation = true;
-        self
-    }
+    // /// Enables parsing of tree annotations
+    // pub fn with_annotations(mut self) -> Self {
+    //     self.parse_annotation = true;
+    //     self
+    // }
 
     /// Sets a [LabelResolver] to resolve short/id keys or labels in Newick string
     /// to indices in [LeafLabelMap].
@@ -409,8 +410,8 @@ impl LabelResolver {
     pub fn new_nexus_integer_labels_resolver(translation: HashMap<String, String>, leaf_label_map: LeafLabelMap) -> Self {
         let num_labels = leaf_label_map.num_labels();
 
-        // Validate all keys are valid integers and build index array
-        // Array at position i contains the label index for NEXUS index i (0-based, so NEXUS "1" is at index_array[0])
+        // Validate all keys are valid integers and build index array;
+        // Array at position i contains the label index for NEXUS index i (1-based, so NEXUS "1" is at index_array[0])
         let mut index_array = vec![0; num_labels];
 
         for (key, actual_label) in &translation {
