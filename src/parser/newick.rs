@@ -1,6 +1,8 @@
-use crate::model::tree::{LabelIndex, LeafLabelMap, Tree, TreeIndex};
+use crate::model::leaf_label_map::LeafLabelMap;
+use crate::model::tree::{LabelIndex, Tree, TreeIndex};
 use crate::model::vertex::BranchLength;
 use crate::parser::byte_parser::ByteParser;
+use crate::parser::byte_source::ByteSource;
 use crate::parser::parsing_error::ParsingError;
 use std::collections::HashMap;
 use std::fmt;
@@ -10,6 +12,10 @@ const NEWICK_LABEL_DELIMITERS: &[u8] = b"([,:; \n\t\r)]";
 
 /// Default guess for number of leaves, when unknown
 const DEFAULT_NUM_LEAVES_GUESS: usize = 10;
+
+// =#========================================================================#=
+// NEWICK PARSER
+// =#========================================================================#=
 
 /// Parser (configuration) for Newick format (binary) phylogenetic [Tree]s.
 ///
@@ -24,14 +30,14 @@ const DEFAULT_NUM_LEAVES_GUESS: usize = 10;
 /// * Plan to include in the future `with_annotations()`, so that it can be configured
 ///   to parse vertex annotation instead of considering them comments,
 ///   (e.g. extract `pop_size` and value from "A[&pop_size=0.123]").
-///   For now, annotation remains unsopported.
+///   For now, annotation remains unsupported.
 ///
 /// # Format
 /// The Newick format has the following simple structure:
 /// * tree ::= vertex ';'
 /// * vertex ::= leaf | internal_vertex
-/// * internal_vertex ::= '(' vertex ',' vertex ')' [branch_length]
-/// * leaf ::= label [branch_length]
+/// * internal_vertex ::= '(' vertex ',' vertex ')' \[branch_length\]
+/// * leaf ::= label \[branch_length\]
 /// * branch_length ::= ':' number
 ///
 /// Furthermore:
@@ -43,18 +49,19 @@ const DEFAULT_NUM_LEAVES_GUESS: usize = 10;
 /// In the extended Newick format, there can be comment-like annotation:
 /// * `[@pop_size=0.543,color=blue]`
 /// For a leaf:
-/// * label [annotation] [branch_length]
-///   - Example: A[@pop_size=0.543]:2.1
+/// * label \[annotation\] \[branch_length\]
+///   - Example: A\[@pop_size=0.543\]:2.1
 /// For an internal vertex and the root:
-/// * (children) [annotation] [branch_length]
-///   - Example: (A,B)[@pop_seize=0.345]:6.7
+/// * (children) \[annotation\] \[branch_length\]
+///   - Example: (A,B\[@pop_seize=0.345\]:6.7
 /// These are considered comments for now and skipped.
 ///
 /// # Example
 /// ```
 /// use nexus_parser::parser::newick::NewickParser;
 /// use nexus_parser::parser::byte_parser::ByteParser;
-/// use nexus_parser::model::tree::{Tree, LeafLabelMap};
+/// use nexus_parser::model::tree::Tree;
+/// use nexus_parser::model::leaf_label_map::LeafLabelMap;
 ///
 /// let input = "(A:1.0,B:1.0):0.0;";
 /// let mut byte_parser = ByteParser::from_str(input);
@@ -71,19 +78,42 @@ pub struct NewickParser {
 }
 
 impl NewickParser {
-    /// Creates a new `NewickParser` with default settings.
-    ///
-    /// By default,:
-    /// - Number of leaves is unknown (will be counted during parsing),
-    /// - Annotations are not parsed, and
-    /// - No label resolver is set (will be created automatically if needed).
+    /// Creates a new [NewickParser] with default settings:
+    /// - Number of leaves is unknown (will be counted during parsing)
+    /// - A verbatim [LabelResolver] is set
     pub fn new() -> Self {
         Self {
             know_num_leaves: false,
             num_leaves: DEFAULT_NUM_LEAVES_GUESS,
-            resolver: LabelResolver::None,
-            // parse_annotation: false,
+            resolver: LabelResolver::VerbatimLabels(LeafLabelMap::new(DEFAULT_NUM_LEAVES_GUESS)),
         }
+    }
+
+    /// Creates a new [NewickParser] based on the given [LabelResolver].
+    ///
+    /// The number of leaves is derived from [LabelResolver]'s [LeafLabelMap] if non-zero,
+    /// otherwise default value used and actual number counted parsing first tree.
+    pub fn new_with_resolver(resolver: LabelResolver) -> Self {
+        if resolver.leaf_label_map().num_labels() > 0 {
+            Self {
+                know_num_leaves: true,
+                num_leaves: resolver.leaf_label_map().num_labels(),
+                resolver,
+            }
+        } else {
+            Self {
+                know_num_leaves: false,
+                num_leaves: DEFAULT_NUM_LEAVES_GUESS,
+                resolver,
+            }
+        }
+    }
+
+    /// Sets a [LabelResolver] to resolve short/id keys or labels in Newick string
+    /// to indices in [LeafLabelMap].
+    pub fn with_resolver(mut self, resolver: LabelResolver) -> Self {
+        self.resolver = resolver;
+        self
     }
 
     /// Sets the expected number of leaves in the tree.
@@ -96,19 +126,6 @@ impl NewickParser {
         self
     }
 
-    // /// Enables parsing of tree annotations
-    // pub fn with_annotations(mut self) -> Self {
-    //     self.parse_annotation = true;
-    //     self
-    // }
-
-    /// Sets a [LabelResolver] to resolve short/id keys or labels in Newick string
-    /// to indices in [LeafLabelMap].
-    pub fn with_resolver(mut self, resolver: LabelResolver) -> Self {
-        self.resolver = resolver;
-        self
-    }
-
     /// Consumes the parser and returns the underlying [LeafLabelMap].
     ///
     /// This should be called after all trees have been parsed to retrieve
@@ -116,6 +133,11 @@ impl NewickParser {
     /// constructed [LeafLabelMap] or the originally provided via a [LabelResolver].
     pub fn into_leaf_label_map(self) -> LeafLabelMap {
         self.resolver.into_leaf_label_map()
+    }
+
+    /// Get ref to [LeafLabelMap] of all taxa
+    pub fn leaf_label_map(&self) -> &LeafLabelMap {
+        &self.resolver.leaf_label_map()
     }
 
     /// Parses a single Newick tree from the given [ByteParser].
@@ -131,12 +153,7 @@ impl NewickParser {
     /// * `Ok(Tree)` - The parsed phylogenetic tree
     /// * `Err(ParsingError)` - If the Newick format is invalid
     ///
-    pub fn parse(&mut self, parser: &mut ByteParser) -> Result<Tree, ParsingError> {
-        if let LabelResolver::None = self.resolver {
-            let label_map = LeafLabelMap::new(self.num_leaves);
-            self.resolver = LabelResolver::new_verbatim_labels_resolver(label_map);
-        }
-
+    pub fn parse<S: ByteSource>(&mut self, parser: &mut ByteParser<S>) -> Result<Tree, ParsingError> {
         let mut tree = Tree::new(self.num_leaves);
 
         // Reset number of leaves to 0, so we can now track it and determine the actual count
@@ -158,7 +175,7 @@ impl NewickParser {
     /// - Calls `parser_children` to parse the children pair
     ///
     /// Equivalent to `parse_internal_vertex` but taking care of root specialities
-    fn parse_root(&mut self, parser: &mut ByteParser, tree: &mut Tree) -> Result<(), ParsingError> {
+    fn parse_root<S: ByteSource>(&mut self, parser: &mut ByteParser<S>, tree: &mut Tree) -> Result<(), ParsingError> {
         parser.skip_comment_and_whitespace()?;
 
         let (left_index, right_index) = self.parser_children(parser, tree)?;
@@ -189,7 +206,7 @@ impl NewickParser {
     /// # Returns
     /// - [TreeIndex] of parsed internal vertex
     /// - [ParsingError] if something went wrong
-    fn parse_vertex(&mut self, parser: &mut ByteParser, tree: &mut Tree) -> Result<TreeIndex, ParsingError> {
+    fn parse_vertex<S: ByteSource>(&mut self, parser: &mut ByteParser<S>, tree: &mut Tree) -> Result<TreeIndex, ParsingError> {
         parser.skip_comment_and_whitespace()?;
         if parser.peek_is(b'(') {
             self.parse_internal_vertex(parser, tree)
@@ -205,7 +222,7 @@ impl NewickParser {
     /// # Returns
     /// - [TreeIndex] of parsed internal vertex
     /// - [ParsingError] if something went wrong
-    fn parse_internal_vertex(&mut self, parser: &mut ByteParser, tree: &mut Tree) -> Result<TreeIndex, ParsingError> {
+    fn parse_internal_vertex<S: ByteSource>(&mut self, parser: &mut ByteParser<S>, tree: &mut Tree) -> Result<TreeIndex, ParsingError> {
         let (left_index, right_index) = self.parser_children(parser, tree)?;
         // Annotation parsing will be added here.
         let branch_length = self.parse_branch_length(parser)?;
@@ -222,7 +239,7 @@ impl NewickParser {
     /// # Returns
     /// - [TreeIndex]s of left and right child vertices
     /// - [ParsingError] if something went wrong
-    fn parser_children(&mut self, parser: &mut ByteParser, tree: &mut Tree) -> Result<(TreeIndex, TreeIndex), ParsingError> {
+    fn parser_children<S: ByteSource>(&mut self, parser: &mut ByteParser<S>, tree: &mut Tree) -> Result<(TreeIndex, TreeIndex), ParsingError> {
         // Calling methods should have skipped comments and whitespace
         if !parser.consume_if(b'(') {
             return Err(ParsingError::invalid_newick_string(
@@ -261,7 +278,7 @@ impl NewickParser {
     /// # Returns
     /// - [TreeIndex] of parsed leaf
     /// - [ParsingError] if something went wrong
-    fn parse_leaf(&mut self, parser: &mut ByteParser, tree: &mut Tree) -> Result<TreeIndex, ParsingError> {
+    fn parse_leaf<S: ByteSource>(&mut self, parser: &mut ByteParser<S>, tree: &mut Tree) -> Result<TreeIndex, ParsingError> {
         let label = parser.parse_label(NEWICK_LABEL_DELIMITERS)?;
         // Annotation parsing will be added here.
         let label_index = self.resolver.resolve_label(&*label, parser)?;
@@ -283,7 +300,7 @@ impl NewickParser {
     /// - [BranchLength] if found branch length and was able to parse it
     /// - `None` if found no branch length
     /// - [ParsingError] if it couldn't parse branch length value
-    fn parse_branch_length(&mut self, parser: &mut ByteParser) -> Result<Option<BranchLength>, ParsingError> {
+    fn parse_branch_length<S: ByteSource>(&mut self, parser: &mut ByteParser<S>) -> Result<Option<BranchLength>, ParsingError> {
         // Whitespace/Comments : Whitespace/Comments
         parser.skip_comment_and_whitespace()?;
         if !parser.consume_if(b':') {
@@ -307,6 +324,11 @@ impl NewickParser {
         Ok(Some(BranchLength::new(value)))
     }
 }
+
+
+// =#========================================================================#=
+// LABEL RESOLVER
+// =#========================================================================#=
 
 /// Resolves leaf labels to indices during Newick tree parsing,
 /// using or building a [LeafLabelMap].
@@ -352,12 +374,11 @@ pub enum LabelResolver {
     /// Optimizes for TRANSLATE blocks using consecutive integer keys (1, 2, 3, ...)
     /// thus allow direct array lookup: translate_index -> leaf_label_index
     NexusIntegerLabels {
-        index_array: Vec<LabelIndex>,  // translate_index[i] = leaf_label_map index
+        /// Array mapping translate indices to leaf label indices
+        index_array: Vec<LabelIndex>,
+        /// The shared leaf label map
         leaf_label_map: LeafLabelMap,
     },
-
-    /// Uninitialized resolver (will be replaced when parsing starts)
-    None,
 }
 
 impl LabelResolver {
@@ -369,7 +390,7 @@ impl LabelResolver {
     ///
     /// # Arguments
     /// * `leaf_map` - An existing or new `LeafLabelMap` to populate
-    pub fn new_verbatim_labels_resolver(leaf_map: LeafLabelMap) -> Self {
+    pub(crate) fn new_verbatim_labels_resolver(leaf_map: LeafLabelMap) -> Self {
         LabelResolver::VerbatimLabels(leaf_map)
     }
 
@@ -381,7 +402,7 @@ impl LabelResolver {
     ///
     /// # Panics
     /// Panics if a label provided by `translation` does not appear in the provided [LeafLabelMap].
-    pub fn new_nexus_labels_resolver(translation: HashMap<String, String>, leaf_label_map: LeafLabelMap) -> Self {
+    pub(crate) fn new_nexus_labels_resolver(translation: HashMap<String, String>, leaf_label_map: LeafLabelMap) -> Self {
         // Instead of going from key -> label and then from label -> index,
         // we create a direct mapping
         let mut index_map = HashMap::with_capacity(translation.len());
@@ -407,11 +428,11 @@ impl LabelResolver {
     /// - A label provided by `translation` does not appear in the provided [LeafLabelMap];
     ///     you can check consistent with `leaf_label_map.check_consistency(translation)` beforehand
     /// - Keys are not consecutive integers starting from 1
-    pub fn new_nexus_integer_labels_resolver(translation: HashMap<String, String>, leaf_label_map: LeafLabelMap) -> Self {
+    pub(crate) fn new_nexus_integer_labels_resolver(translation: HashMap<String, String>, leaf_label_map: LeafLabelMap) -> Self {
         let num_labels = leaf_label_map.num_labels();
 
         // Validate all keys are valid integers and build index array;
-        // Array at position i contains the label index for NEXUS index i (1-based, so NEXUS "1" is at index_array[0])
+        // Array at position `i` contains the label index for NEXUS index `i` (1-based, so NEXUS "1" is at index_array[0])
         let mut index_array = vec![0; num_labels];
 
         for (key, actual_label) in &translation {
@@ -422,7 +443,7 @@ impl LabelResolver {
             // Validate bounds (1-based NEXUS indexing)
             if nexus_index == 0 || nexus_index > num_labels {
                 panic!("TRANSLATE index {} out of bounds (1-based indexing, valid range: 1-{})",
-                       nexus_index, num_labels);
+                    nexus_index, num_labels);
             }
 
             // Look up the label in the leaf_label_map
@@ -445,7 +466,7 @@ impl LabelResolver {
     /// # Returns
     /// * `Ok(LabelIndex)` - The index corresponding to this label
     /// * `Err(ParsingError)` - If the label cannot be resolved
-    pub fn resolve_label(&mut self, parsed_label: &str, parser: &ByteParser) -> Result<LabelIndex, ParsingError> {
+    pub(crate) fn resolve_label<S: ByteSource>(&mut self, parsed_label: &str, parser: &ByteParser<S>) -> Result<LabelIndex, ParsingError> {
         match self {
             LabelResolver::VerbatimLabels(leaf_label_map) => {
                 Ok(leaf_label_map.get_or_insert(parsed_label))
@@ -488,7 +509,7 @@ impl LabelResolver {
                         return Err(ParsingError::unresolved_label(
                             parser,
                             format!("Index {} out of bounds (1-based indexing, valid range: 1-{})",
-                                    nexus_index, index_array.len()),
+                                nexus_index, index_array.len()),
                         ));
                     }
                     // Convert 1-based to 0-based and lookup in array
@@ -500,14 +521,10 @@ impl LabelResolver {
                     format!("NexusIntegerLabels resolver requires integer labels, got '{}'", parsed_label),
                 ))
             }
-
-            LabelResolver::None => {
-                Err(ParsingError::unresolved_label(parser, "No resolver initialized".to_string()))
-            }
         }
     }
 
-    /// Consumes the resolver and returns the stored or accumulated `LeafLabelMap`.
+    /// Consumes the resolver and returns the stored or accumulated [LeafLabelMap].
     ///
     /// This extracts the final label-to-index mapping from the resolver,
     /// regardless of which variant it is.
@@ -515,12 +532,19 @@ impl LabelResolver {
     /// # Returns
     /// The [LeafLabelMap] initially supplied or a new one containing all labels encountered during parsing.
     /// Returns an empty map if the resolver was never initialized (`None` variant).
-    pub fn into_leaf_label_map(self) -> LeafLabelMap {
+    pub(crate) fn into_leaf_label_map(self) -> LeafLabelMap {
         match self {
             LabelResolver::VerbatimLabels(leaf_label_map) => leaf_label_map,
             LabelResolver::NexusLabels { leaf_label_map, .. } => leaf_label_map,
             LabelResolver::NexusIntegerLabels { leaf_label_map, .. } => leaf_label_map,
-            LabelResolver::None => LeafLabelMap::new(0),
+        }
+    }
+
+    pub(crate) fn leaf_label_map(&self) -> &LeafLabelMap {
+        match self {
+            LabelResolver::VerbatimLabels(leaf_label_map) => &leaf_label_map,
+            LabelResolver::NexusLabels { leaf_label_map, .. } => &leaf_label_map,
+            LabelResolver::NexusIntegerLabels { leaf_label_map, .. } => &leaf_label_map,
         }
     }
 }
@@ -544,9 +568,6 @@ impl fmt::Display for LabelResolver {
                     writeln!(f, "  {} -> {}", i + 1, label_index)?;
                 }
                 Ok(())
-            }
-            LabelResolver::None => {
-                writeln!(f, "LabelResolver::None")
             }
         }
     }

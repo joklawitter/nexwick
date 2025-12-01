@@ -94,7 +94,7 @@ fn test_position() {
 
 #[test]
 fn test_peek_is_word() {
-    let mut parser = ByteParser::from_str("BEGIN TREES;");
+    let parser = ByteParser::from_str("BEGIN TREES;");
     assert!(parser.peek_is_word("BEGIN"));
     assert!(parser.peek_is_word("beGin"));
     assert!(!parser.peek_is_word("benin"));

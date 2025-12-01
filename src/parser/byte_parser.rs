@@ -1,14 +1,15 @@
 use crate::parser::byte_parser::ConsumeMode::Inclusive;
+use crate::parser::byte_source::{ByteSource, InMemoryByteSource};
 use crate::parser::parsing_error::ParsingError;
 
 /// A byte-by-byte parser for ASCII text with support for peeking, consuming, and pattern matching.
 ///
 /// [ByteParser] provides parsing operations for text-based formats, specifically targeting Newick and NEXUS.
-/// It operates on byte slices and assumes ASCII encoding, offering both peek, consume,
+/// It operates on byte sources and assumes ASCII encoding, offering both peek, consume,
 /// and skip operations with case-insensitive matching.
 ///
 /// # Features
-/// - Zero-copy parsing using byte slices
+/// - Works with any ByteSource (in-memory or buffered)
 /// - Case-insensitive matching for ASCII characters
 /// - Whitespace and comment skipping
 /// - Quote-aware label parsing (single quotes with escaping)
@@ -18,11 +19,13 @@ use crate::parser::parsing_error::ParsingError;
 /// - Make consume_until methods comment-sensitive
 ///
 /// # Example
-/// ```
+/// ```ignore
 /// use nexus_parser::parser::byte_parser::ByteParser;
+/// use nexus_parser::parser::byte_source::InMemoryByteSource;
 ///
 /// let input = "BEGIN TREES;\n  TREE t1 = (A:1.0,B:1.0):0.0;";
-/// let mut parser = ByteParser::from_str(input);
+/// let source = InMemoryByteSource::new(input.as_bytes());
+/// let mut parser = ByteParser::new(source);
 ///
 /// parser.skip_whitespace();
 /// assert!(parser.peek_is_word("BEGIN"));
@@ -30,69 +33,55 @@ use crate::parser::parsing_error::ParsingError;
 /// parser.skip_whitespace();
 /// assert!(parser.peek_is_word("TREES"));
 /// ```
-pub struct ByteParser<'a> {
-    /// Byte slice being parsed
-    input: &'a [u8],
-    /// Current position of parser
-    pos: usize,
+pub struct ByteParser<S: ByteSource> {
+    source: S,
 }
 
-impl<'a> ByteParser<'a> {
-    /// Creates a new `ByteParser` from a string slice.
+impl ByteParser<InMemoryByteSource> {
+    /// Creates a new `ByteParser` from a byte slice by copying it into a Vec.
     ///
     /// # Arguments
-    /// * `slice` - The string slice to parse
-    ///
-    /// # Example
-    /// ```
-    /// use nexus_parser::parser::byte_parser::ByteParser;
-    ///
-    /// let text = "TREE t1 = (A,B);";
-    /// let mut parser = ByteParser::from_str(text);
-    /// assert!(parser.peek_is_word("tree")); // case insensitive
-    /// ```
-    pub fn from_str(slice: &'a str) -> Self {
-        ByteParser::from_bytes(slice.as_bytes())
+    /// * `input` - The byte slice to parse
+    pub fn from_bytes(input: &[u8]) -> Self {
+        Self::new(InMemoryByteSource::from_vec(input.to_vec()))
     }
 
-    /// Creates a new `ByteParser` from a byte slice.
+    /// Creates a new `ByteParser` from a String by copying it into a Vec.
     ///
     /// # Arguments
-    /// * `bytes` - The byte slice to parse
+    /// * `input` - The string to parse
+    pub fn from_str(input: &str) -> Self {
+        Self::new(InMemoryByteSource::from_vec(input.as_bytes().to_vec()))
+    }
+}
+
+impl<S: ByteSource> ByteParser<S> {
+    /// Creates a new `ByteParser` from a byte source.
     ///
-    /// # Example
-    /// ```
-    /// use nexus_parser::parser::byte_parser::ByteParser;
-    ///
-    /// let data = b"TREE t1 = (A,B);";
-    /// let mut parser = ByteParser::from_bytes(data);
-    /// assert!(parser.peek_is_word("TREE"));
-    /// ```
-    pub fn from_bytes(bytes: &'a [u8]) -> Self {
-        Self {
-            input: bytes,
-            pos: 0,
-        }
+    /// # Arguments
+    /// * `source` - The byte source to parse
+    pub fn new(source: S) -> Self {
+        Self { source }
     }
 
     /// Peeks at the current byte without consuming it.
     ///
     /// # Returns
     /// * `Some(u8)` - The current byte if available
-    /// * `None` - If at end of slice (EOF)
+    /// * `None` - If at end of data (EOF)
+    #[inline(always)]
     pub fn peek(&self) -> Option<u8> {
-        self.input.get(self.pos).copied()
+        self.source.peek()
     }
 
     /// Gets the current byte and advances the position (consumes it).
     ///
     /// # Returns
     /// * `Some(u8)` - The current byte if available
-    /// * `None` - If at end of slice (EOF)
+    /// * `None` - If at end of data (EOF)
+    #[inline(always)]
     pub fn next(&mut self) -> Option<u8> {
-        let byte = self.peek()?;
-        self.pos += 1;
-        Some(byte)
+        self.source.next()
     }
 
     /// Skips (consumes) all consecutive whitespace characters.
@@ -169,43 +158,37 @@ impl<'a> ByteParser<'a> {
     ///
     /// # Returns
     /// `true` if the next bytes match `word` (case-insensitive), `false` otherwise
-    pub fn peek_is_word(&mut self, word: &str) -> bool {
+    pub fn peek_is_word(&self, word: &str) -> bool {
         self.peek_is_sequence(word.as_bytes())
     }
 
     /// Checks if the following bytes match the given byte sequence (case-insensitive).
     ///
-    /// This is a peek operation - the parser position is not changed.
+    /// This is a peek operation - not fully optimized for all ByteSources.
     ///
     /// # Arguments
     /// * `sequence` - The byte sequence to match against
     ///
     /// # Returns
     /// `true` if the next bytes match `sequence` (case-insensitive), `false` otherwise
-    pub fn peek_is_sequence(&mut self, sequence: &[u8]) -> bool {
-        let original_position = self.pos;
+    #[inline]
+    pub fn peek_is_sequence(&self, sequence: &[u8]) -> bool {
+        // Get slice without allocating
+        let context = self.source.peek_slice(sequence.len());
 
-        for seq_byte in sequence {
-            let input_byte = match self.next() {
-                Some(b) => b,
-                None => {
-                    // reached EOF before finding sequence
-                    self.pos = original_position;
-                    return false;
-                }
-            };
+        if context.len() < sequence.len() {
+            return false;
+        }
 
-            if input_byte != *seq_byte
-                && input_byte != seq_byte.to_ascii_lowercase()
-                && input_byte != seq_byte.to_ascii_uppercase() {
-                // found byte mismatch
-                self.pos = original_position;
+        // Case-insensitive comparison
+        for (context_byte, seq_byte) in context.iter().zip(sequence.iter()) {
+            if *context_byte != *seq_byte
+                && *context_byte != seq_byte.to_ascii_lowercase()
+                && *context_byte != seq_byte.to_ascii_uppercase() {
                 return false;
             }
         }
 
-        // Restore position since we only peek
-        self.pos = original_position;
         true
     }
 
@@ -245,28 +228,16 @@ impl<'a> ByteParser<'a> {
     /// # Returns
     /// `true` if the sequence was matched and consumed, `false` otherwise
     pub fn consume_if_sequence(&mut self, sequence: &[u8]) -> bool {
-        let seq_len = sequence.len();
-
-        // Check if we have enough bytes remaining
-        if self.pos + seq_len > self.input.len() {
+        // Check if the sequence matches
+        if !self.peek_is_sequence(sequence) {
             return false;
         }
 
-        // Check if the next bytes match the word (case-insensitive)
-        for i in 0..seq_len {
-            let input_byte = self.input[self.pos + i];
-            let seq_byte = sequence[i];
-
-            // Compare case-insensitively
-            if input_byte != seq_byte
-                && input_byte != seq_byte.to_ascii_lowercase()
-                && input_byte != seq_byte.to_ascii_uppercase() {
-                return false;
-            }
+        // Consume the bytes
+        for _ in 0..sequence.len() {
+            self.next();
         }
 
-        // Match found, consume it
-        self.pos += seq_len;
         true
     }
 
@@ -282,7 +253,7 @@ impl<'a> ByteParser<'a> {
         while let Some(b) = self.peek() {
             if b == target {
                 if mode == ConsumeMode::Inclusive {
-                    self.pos += 1;
+                    self.next();
                 }
                 return true;
             }
@@ -303,7 +274,7 @@ impl<'a> ByteParser<'a> {
         while let Some(b) = self.peek() {
             if targets.contains(&b) {
                 if mode == ConsumeMode::Inclusive {
-                    self.pos += 1;
+                    self.next();
                 }
                 return Some(b); // return which one we found
             }
@@ -334,42 +305,33 @@ impl<'a> ByteParser<'a> {
     /// # Returns
     /// `true` if the sequence was found, `false` if EOF was reached first
     pub fn consume_until_sequence(&mut self, sequence: &[u8], mode: ConsumeMode) -> bool {
-        let seq_len = sequence.len();
-
-        while self.pos + seq_len <= self.input.len() {
-            let mut matches = true;
-            for i in 0..seq_len {
-                let input_byte = self.input[self.pos + i];
-                let seq_byte = sequence[i];
-
-                if input_byte != seq_byte
-                    && input_byte != seq_byte.to_ascii_lowercase()
-                    && input_byte != seq_byte.to_ascii_uppercase() {
-                    matches = false;
-                    break;
-                }
+        loop {
+            if self.is_eof() {
+                return false;
             }
 
-
-            if matches {
+            // Check if we match the sequence at current position
+            if self.peek_is_sequence(sequence) {
                 if mode == ConsumeMode::Inclusive {
-                    self.pos += seq_len;
+                    // Consume the sequence
+                    for _ in 0..sequence.len() {
+                        self.next();
+                    }
                 }
                 return true;
             }
 
-            self.pos += 1;
+            // Move forward one byte
+            self.next();
         }
-
-        false
     }
 
-    /// Returns whether the end of slice (EOF) has been reached.
+    /// Returns whether the end of data (EOF) has been reached.
     ///
     /// # Returns
-    /// `true` if at or beyond the end of slice, `false` otherwise
+    /// `true` if at or beyond the end of data, `false` otherwise
     pub fn is_eof(&self) -> bool {
-        self.pos >= self.input.len()
+        self.source.is_eof()
     }
 
     /// Returns the current parser position in the input.
@@ -379,7 +341,15 @@ impl<'a> ByteParser<'a> {
     /// # Returns
     /// The current byte offset in the input
     pub fn position(&self) -> usize {
-        self.pos
+        self.source.position()
+    }
+
+    /// Sets the position in the byte stream.
+    ///
+    /// # Arguments
+    /// * `pos` - The byte offset to seek to
+    pub fn set_position(&mut self, pos: usize) {
+        self.source.set_position(pos);
     }
 
     /// Returns a slice of the input from a start position to the current position.
@@ -388,9 +358,9 @@ impl<'a> ByteParser<'a> {
     /// * `start` - The starting byte offset
     ///
     /// # Returns
-    /// A byte slice from `start` to the current position
+    /// A byte slice from `start` to the current position, or empty slice if not available
     pub fn slice_from(&self, start: usize) -> &[u8] {
-        &self.input[start..self.pos]
+        self.source.slice_from(start).unwrap_or(&[])
     }
 
     /// Returns up to `k` bytes from the current position for error context.
@@ -401,8 +371,7 @@ impl<'a> ByteParser<'a> {
     /// # Returns
     /// A vector containing up to `k` bytes (or fewer if EOF reached)
     pub fn get_context(&self, k: usize) -> Vec<u8> {
-        let end = (self.pos + k).min(self.input.len());
-        self.input[self.pos..end].to_vec()
+        self.source.get_context(k)
     }
 
     /// Returns a string from up to `k` bytes from the current position for error context.

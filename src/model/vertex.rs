@@ -8,6 +8,9 @@ use std::ops::Deref;
 /// During construction, Internal and Leaf vertex might not have parent set yet.
 const NO_PARENT_SET: TreeIndex = usize::MAX;
 
+// =#========================================================================#=
+// VERTEX
+// =#========================================================================#=
 /// Represents a vertex (node) in a phylogenetic tree.
 ///
 /// A vertex can be either:
@@ -23,20 +26,33 @@ const NO_PARENT_SET: TreeIndex = usize::MAX;
 /// - Leaf vertices have a `label_index`, since many trees share labels
 #[derive(PartialEq, Debug, Clone)]
 pub enum Vertex {
+    /// Root vertex of the tree (has no parent, has two children)
     Root {
+        /// Index of this vertex in the tree arena
         index: TreeIndex,
+        /// Indices of the two child vertices
         children: (TreeIndex, TreeIndex),
     },
+    /// Internal vertex (has parent and two children, no label)
     Internal {
+        /// Index of this vertex in the tree arena
         index: TreeIndex,
+        /// Index of the parent vertex
         parent: TreeIndex,
+        /// Indices of the two child vertices
         children: (TreeIndex, TreeIndex),
+        /// Distance to parent node (optional, non-negative if present)
         branch_length: Option<BranchLength>,
     },
+    /// Leaf vertex (has parent and label, no children)
     Leaf {
+        /// Index of this vertex in the tree arena
         index: TreeIndex,
+        /// Index into the shared label map
         label_index: LabelIndex,
+        /// Index of the parent vertex
         parent: TreeIndex,
+        /// Distance to parent node (optional, non-negative if present)
         branch_length: Option<BranchLength>,
     },
 }
@@ -182,10 +198,17 @@ impl Vertex {
     }
 }
 
+
+// =#========================================================================#=
+// BRANCH LENGTH
+// =#========================================================================#=
+/// Branch length in a phylogenetic tree, enforced non-negative.
+///
+/// Represents the evolutionary distance between a vertex and its parent.
+/// The value is guaranteed to be non-negative and finite.
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct BranchLength(f64);
 
-/// Branch length in a phylogenetic tree, enforced non-negative.
 impl BranchLength {
     /// Creates a new branch length.
     ///
