@@ -1,5 +1,8 @@
-use nexus_parser::parser::byte_parser::ByteParser;
-use nexus_parser::parser::newick::NewickParser;
+use nexus_parser::io::parser::byte_parser::ByteParser;
+use nexus_parser::io::parser::newick::{parse_file, NewickParser};
+use std::fs::File;
+use std::path::Path;
+// --- TESTS NEWICK STRING PARSING ---
 
 #[test]
 fn test_basic_tree() {
@@ -152,4 +155,20 @@ fn test_invalid_branch_length() {
     let mut parser = ByteParser::from_str(newick);
     let tree = NewickParser::new().with_num_leaves(3).parse(&mut parser);
     assert!(tree.is_err());
+}
+
+// --- TESTS PARSING WHOLE FILE ---
+#[test]
+fn test_parsing_newick_file() {
+    let path = Path::new("tests").join("fixtures").join("newick_t4_n10.nwk");
+    let file = File::open(&path).unwrap();
+    let (trees, leaf_map) = parse_file(file).unwrap();
+
+    assert_eq!(trees.len(), 3);
+    assert_eq!(leaf_map.num_labels(), 10);
+
+    for tree in &trees {
+        assert_eq!(tree.num_leaves(), 10);
+        assert!(tree.is_valid());
+    }
 }

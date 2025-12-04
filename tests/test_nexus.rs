@@ -1,6 +1,6 @@
+use nexus_parser::io::parser::nexus::{Burnin, NexusParserBuilder};
+use nexus_parser::io::writer::newick::NewickStyle;
 use nexus_parser::parse_nexus_file;
-use nexus_parser::parser::nexus::{NexusParserBuilder, Burnin};
-use nexus_parser::model::tree::NewickStyle;
 use std::fs::File;
 use std::path::Path;
 
@@ -205,8 +205,8 @@ fn test_lazy_mode_reset() {
     assert_eq!(tree1_again.num_leaves(), 10);
 
     // Trees should be equivalent (same structure)
-    assert_eq!(tree1.to_newick(NewickStyle::ZeroIndexed, None),
-               tree1_again.to_newick(NewickStyle::ZeroIndexed, None));
+    assert_eq!(tree1.to_newick(&NewickStyle::ZeroIndexed, None),
+        tree1_again.to_newick(&NewickStyle::ZeroIndexed, None));
 }
 
 #[test]
@@ -236,6 +236,6 @@ fn test_lazy_mode_reset_with_burnin() {
     let first_tree_again = parser.next_tree().unwrap().unwrap();
 
     // Should get the same first tree again
-    assert_eq!(first_tree.to_newick(NewickStyle::ZeroIndexed, None),
-               first_tree_again.to_newick(NewickStyle::ZeroIndexed, None));
+    assert_eq!(first_tree.to_newick(&NewickStyle::ZeroIndexed, None),
+        first_tree_again.to_newick(&NewickStyle::ZeroIndexed, None));
 }

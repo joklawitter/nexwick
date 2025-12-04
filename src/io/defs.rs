@@ -8,7 +8,7 @@ pub(crate) const BLOCK_BEGIN: &[u8] = b"Begin";
 pub(crate) const BLOCK_END: &[u8] = b"End;";
 
 // Taxa block
-// pub(crate) const TREES: &[u8] = b"taxa;";
+pub(crate) const TAXA: &[u8] = b"taxa;";
 
 pub(crate) const DIMENSIONS: &[u8] = b"Dimensions";
 
@@ -17,7 +17,7 @@ pub(crate) const NTAX: &[u8] = b"ntax";
 pub(crate) const TAXLABELS: &[u8] = b"Taxlabels";
 
 // Tree block
-// pub(crate) const TREES: &[u8] = b"trees;";
+pub(crate) const TREES: &[u8] = b"trees;";
 
 pub(crate) const TRANSLATE: &[u8] = b"Translate";
 
