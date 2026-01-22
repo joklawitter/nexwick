@@ -1,10 +1,15 @@
 //! Leaf label module for phylogenetic tree representation.
 //!
-//! - `LeafLabelMap`: Joined storage and lookup for leaf labels for trees on same labels.
+//! [LeafLabelMap] implements joined storage and lookup
+//! for leaf labels of trees on the same labels/taxa.
+//! Uses type [LabelIndex] for indices.
 
-use crate::model::tree::LabelIndex;
+use crate::model::label_resolver::LabelStorage;
 use std::collections::HashMap;
 use std::fmt;
+
+/// Index of a leaf label in a [LeafLabelMap].
+pub type LabelIndex = usize;
 
 // =#========================================================================#=
 // LEAF LABEL MAP
@@ -18,7 +23,7 @@ use std::fmt;
 ///
 /// # Example
 /// ```
-/// use nexus_parser::model::leaf_label_map::LeafLabelMap;
+/// use nexwick::model::leaf_label_map::LeafLabelMap;
 ///
 /// let mut labels = LeafLabelMap::new(3);
 ///
@@ -33,10 +38,12 @@ use std::fmt;
 pub struct LeafLabelMap {
     /// Expected number of unique labels
     num_leaves: usize,
-    /// List of unique labels
+    /// List of unique labels with its index used as id;
+    /// index is this vector must be stored in map for this label.
     labels: Vec<String>,
-    /// Map from label to its index
-    map: HashMap<String, usize>,
+    /// Map from label to its index in the labels vector;
+    /// stored index must be index in vector for this label.
+    map: HashMap<String, LabelIndex>,
 }
 
 impl LeafLabelMap {
@@ -108,7 +115,7 @@ impl LeafLabelMap {
     ///
     /// # Returns
     /// `Some(&str)` if the index is valid, `None` otherwise
-    pub fn get_label(&self, index: usize) -> Option<&str> {
+    pub fn get_label(&self, index: LabelIndex) -> Option<&str> {
         self.labels.get(index).map(|s| s.as_str())
     }
 
@@ -138,26 +145,34 @@ impl LeafLabelMap {
         &self.labels
     }
 
-    /// Checks whether the given HashMap is consistent with this map:
-    /// - Same length
-    /// - All labels in `translation` appear in this map
-    ///
-    ///# Arguments
-    ///* `translation` - Translation map (likely from Nexus TRANSLATE command) to test,
-    ///                  with leaf labels being the map's values
-    pub fn check_consistency_with_translation(&self, translation: &HashMap<String, String>) -> bool {
-        // Need to have same number of labels
-        if translation.len() != self.num_labels() {
-            return false;
-        }
-        // Each label in map needs to appear
-        for test_label in translation.values() {
-            if !self.contains_label(test_label) {
-                return false;
-            }
-        }
+    /// Returns reference to the underlying map.
+    pub fn map(&self) -> &HashMap<String, usize> {
+        &self.map
+    }
 
-        true
+}
+
+impl LabelStorage for LeafLabelMap {
+    type LabelRef = LabelIndex;
+
+    fn with_capacity(num_labels: usize) -> Self {
+        Self::new(num_labels)
+    }
+
+    fn store_and_ref(&mut self, label: &str) -> LabelIndex {
+        self.get_or_insert(label)
+    }
+
+    fn check_and_ref(&self, label: &str) -> Option<LabelIndex> {
+        self.get_index(label)
+    }
+
+    fn index_to_ref(&self, index: usize) -> LabelIndex {
+        index
+    }
+
+    fn num_labels(&self) -> usize {
+        self.num_labels()
     }
 }
 

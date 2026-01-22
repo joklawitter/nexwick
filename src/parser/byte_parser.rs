@@ -1,10 +1,19 @@
+//! Low-level byte-by-byte parser for ASCII text.
+//!
+//! This module provides [ByteParser] for parser text-based file formats with support
+//! for peeking, consuming, pattern matching, and quote-aware label parser. Used as
+//! the foundation for both NEXUS and Newick parsers.
+
 use crate::parser::byte_parser::ConsumeMode::Inclusive;
 use crate::parser::byte_source::{ByteSource, InMemoryByteSource};
 use crate::parser::parsing_error::ParsingError;
 
+// =#========================================================================#=
+// BYTE PARSER
+// =#========================================================================#=
 /// A byte-by-byte parser for ASCII text with support for peeking, consuming, and pattern matching.
 ///
-/// [ByteParser] provides parsing operations for text-based formats, specifically targeting Newick and NEXUS.
+/// [ByteParser] provides parser operations for text-based formats, specifically targeting Newick and NEXUS.
 /// It operates on byte sources and assumes ASCII encoding, offering both peek, consume,
 /// and skip operations with case-insensitive matching.
 ///
@@ -12,7 +21,7 @@ use crate::parser::parsing_error::ParsingError;
 /// - Works with any ByteSource (in-memory or buffered)
 /// - Case-insensitive matching for ASCII characters
 /// - Whitespace and comment skipping
-/// - Quote-aware label parsing (single quotes with escaping)
+/// - Quote-aware label parser (single quotes with escaping)
 /// - Context extraction for error reporting
 ///
 /// # TODOs
@@ -391,7 +400,7 @@ impl<S: ByteSource> ByteParser<S> {
     /// Parses a label (quoted or unquoted) with the given delimiter set.
     ///
     /// This method automatically detects whether the label is quoted (single quotes)
-    /// or unquoted and calls the appropriate parsing method.
+    /// or unquoted and calls the appropriate parser method.
     ///
     /// # Arguments
     /// * `delimiters` - Byte array of characters that end an unquoted label
@@ -400,7 +409,7 @@ impl<S: ByteSource> ByteParser<S> {
     /// The parsed label string
     ///
     /// # Errors
-    /// Returns an error if quote parsing fails
+    /// Returns an error if quote parser fails
     pub fn parse_label(&mut self, delimiters: &[u8]) -> Result<String, ParsingError> {
         self.skip_comment_and_whitespace()?;
 
@@ -477,7 +486,7 @@ impl<S: ByteSource> ByteParser<S> {
 ///
 /// # Examples
 /// ```
-/// use nexus_parser::parser::byte_parser::{ByteParser, ConsumeMode};
+/// use nexwick::parser::parser::byte_parser::{ByteParser, ConsumeMode};
 ///
 /// let mut parser = ByteParser::from_str("TREE t1=((A:0.5,B:0.5):0.3,C:0.8):0.0");
 ///

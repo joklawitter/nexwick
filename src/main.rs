@@ -1,10 +1,10 @@
-use nexus_parser::parse_nexus_file;
+use nexwick::parse_nexus_file;
 
 fn main() {
-    let file = "path/to/your/trees/file/foo.trees";
+    let path = "path/to/your/trees/file.trees";
     // let start = Instant::now();
-    print!("Parse file: {file}\n");
-    let (trees, _) = parse_nexus_file(file).unwrap();
+    print!("Parse file: {path}\n");
+    let (trees, _) = parse_nexus_file(path).unwrap();
     // let duration = start.elapsed();
     // println!("Parsing took: {:?}", duration);
     print!("num trees: {}", trees.len());

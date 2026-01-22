@@ -1,5 +1,11 @@
+//! Byte source abstractions for parser.
+//!
+//! This module provides the [ByteSource] trait and implementations for different
+//! ways of accessing byte data during parser. Supports both in-memory sources
+//! ([InMemoryByteSource]) and potentially buffered file reading.
+
 // =#========================================================================#=
-// BYTE SOURCE
+// BYTE SOURCE (Trait)
 // =#========================================================================#=
 /// Trait defining the interface for different byte sources used by ByteParser.
 ///
@@ -7,7 +13,7 @@
 /// - In-memory byte slices (`&[u8]`)
 /// - Buffered reading from files (`BufReader<File>`)
 ///
-/// By using this trait, the same parsing logic can work with both small files
+/// By using this trait, the same parser logic can work with both small files
 /// loaded entirely into memory and large files streamed from disk.
 pub trait ByteSource {
     /// Peek at the current byte without consuming it.

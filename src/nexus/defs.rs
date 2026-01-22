@@ -1,29 +1,47 @@
-/// Nexus label parsing delimiters: parentheses, comma, colon, semicolon, whitespace
+//! NEXUS format constants and definitions.
+//!
+//! This module contains byte string constants for parser and writing phylogenetic
+//! tree files in NEXUS and Newick formats, as well as enum definitions for NEXUS blocks.
+
+/// Newick label delimiters: parentheses, comma, colon, semicolon, whitespace
+pub(crate) const NEWICK_LABEL_DELIMITERS: &[u8] = b"([,:; \n\t\r)]";
+
+/// NEXUS label delimiters: comma, semicolon, whitespace
 pub(crate) const NEXUS_LABEL_DELIMITERS: &[u8] = b" ,;\t\n\r";
 
+/// NEXUS file header "#NEXUS"
 pub(crate) const NEXUS_HEADER: &[u8] = b"#NEXUS";
 
+/// NEXUS block begin keyword "Begin"
 pub(crate) const BLOCK_BEGIN: &[u8] = b"Begin";
 
+/// NEXUS block end keyword "End;" (with semicolon)
 pub(crate) const BLOCK_END: &[u8] = b"End;";
 
-// Taxa block
+// Taxa block keywords
+/// TAXA block identifier "taxa;" (with semicolon)
 pub(crate) const TAXA: &[u8] = b"taxa;";
 
+/// TAXA block dimensions keyword "Dimensions"
 pub(crate) const DIMENSIONS: &[u8] = b"Dimensions";
 
+/// Number of taxa parameter "ntax"
 pub(crate) const NTAX: &[u8] = b"ntax";
 
+/// Tax labels command "Taxlabels"
 pub(crate) const TAXLABELS: &[u8] = b"Taxlabels";
 
-// Tree block
+// Trees block keywords
+/// TREES block identifier "trees;" (with semicolon)
 pub(crate) const TREES: &[u8] = b"trees;";
 
+/// TREES block translate command "Translate"
 pub(crate) const TRANSLATE: &[u8] = b"Translate";
 
+/// Individual tree declaration keyword "tree"
 pub(crate) const TREE: &[u8] = b"tree";
 
-/// TODO
+/// NEXUS block types
 #[derive(Debug, PartialEq, Clone)]
 pub enum NexusBlock {
     Taxa,

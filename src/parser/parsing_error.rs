@@ -1,3 +1,8 @@
+//! Error types for NEXUS and Newick parser.
+//!
+//! This module provides [ParsingError] and [ParsingErrorType] for representing
+//! and reporting errors that occur during parser of phylogenetic tree files.
+
 use crate::parser::byte_parser::ByteParser;
 use crate::parser::byte_source::ByteSource;
 use std::error::Error;
@@ -9,10 +14,11 @@ const DEFAULT_CONTEXT_LENGTH: usize = 50;
 
 // =#========================================================================#=
 // PARSING ERROR TYPE
-// =#========================================================================#=
-/// Error types that can occur during NEXUS and NEWICK parsing
+// =#========================================================================€=
+/// Error types that can occur during NEXUS and NEWICK parser.
 #[derive(PartialEq, Debug, Clone)]
 pub enum ParsingErrorType {
+    IoError(String),
     UnexpectedEOF,
     MissingNexusHeader,
     InvalidBlockName,
@@ -23,13 +29,15 @@ pub enum ParsingErrorType {
     InvalidNewickString(String),
     InvalidFormatting,
     UnresolvedLabel(String),
+    BuilderNotInitialized,
+    InvalidTreeStructure,
 }
 
 
 // =#========================================================================#=
 // PARSING ERROR
-// =#========================================================================#=
-/// Parsing error with contextual information (position and surrounding bytes)
+// =#========================================================================$=
+/// Parsing error with contextual information (position and surrounding bytes).
 #[derive(Debug)]
 pub struct ParsingError {
     kind: ParsingErrorType,
@@ -92,9 +100,14 @@ impl ParsingError {
         Self::from_parser(ParsingErrorType::InvalidFormatting, parser)
     }
 
-    /// Convenience constructor for Other error during parsing
+    /// Convenience constructor for Other error during parser
     pub fn unresolved_label<S: ByteSource>(parser: &ByteParser<S>, msg: String) -> Self {
         Self::from_parser(ParsingErrorType::UnresolvedLabel(msg), parser)
+    }
+
+    /// Create a ParsingError without parser context (for builder errors)
+    pub fn without_context(kind: ParsingErrorType) -> Self {
+        Self { kind, position: 0, context: String::new() }
     }
 
     /// Get the error kind
@@ -122,6 +135,9 @@ impl fmt::Display for ParsingError {
             ParsingErrorType::UnexpectedEOF => write!(f, "Unexpected end of file")?,
             ParsingErrorType::InvalidFormatting => write!(f, "Invalid formatting")?,
             ParsingErrorType::UnresolvedLabel(msg) => write!(f, "Could not resolve label - {msg}")?,
+            ParsingErrorType::BuilderNotInitialized => write!(f, "Builder not initialized")?,
+            ParsingErrorType::InvalidTreeStructure => write!(f, "Invalid tree structure")?,
+            ParsingErrorType::IoError(msg) => write!(f, "IO error - {msg}")?,
         }
 
         // Additional position information
@@ -139,5 +155,15 @@ impl fmt::Display for ParsingError {
 impl Error for ParsingError {
     fn source(&self) -> Option<&(dyn Error + 'static)> {
         None
+    }
+}
+
+impl From<std::io::Error> for ParsingError {
+    fn from(err: std::io::Error) -> Self {
+        ParsingError {
+            kind: ParsingErrorType::IoError(err.to_string()),
+            position: 0,  // No position for IO errors
+            context: String::new(),  // No parsing context
+        }
     }
 }
