@@ -1,13 +1,10 @@
 //! Label resolution for Nexus file and Newick tree parsing.
 //!
-//! This module provides:
-//! - [`LabelResolver`] — resolves string labels during parsing into storage references
-//! - [`LabelStorage`] — trait for label storage backends
-//! - [`SimpleLabelStorage`] — basic implementation storing labels as owned strings
-//!
-//! For an indexed storage implementation optimized for shared labels across multiple trees,
-//! see [`LeafLabelMap`](crate::model::LeafLabelMap).
+//! [`LabelResolver`] wraps a [`LabelStorage`]
+//! and handles translation during parsing. For Nexus files with TRANSLATE
+//! commands, it maps keys to actual labels before calling the storage.
 
+use crate::model::LabelStorage;
 use std::collections::HashMap;
 use std::fmt;
 use std::fmt::{Display, Debug};
@@ -36,7 +33,7 @@ pub enum LabelResolver<S: LabelStorage> {
     /// Each label string is passed directly to the [`LabelStorage`].
     VerbatimLabels(S),
 
-    /// Resolves labels using Neus TRANSLATE command mapping.
+    /// Resolves labels using Nexus TRANSLATE command mapping.
     ///
     /// Following specification, tries to resolve in order:
     /// 1. Key provided by TRANSLATE map
@@ -276,92 +273,12 @@ impl<S: LabelStorage> Display for LabelResolver<S> {
 // =#========================================================================#=
 // LABEL RESOLVING ERROR
 // =#========================================================================$=
-/// Error returned when [`LabelResolver::resolve_label`] cannot resolve a label.
+/// Error returned when [`LabelResolver`] cannot resolve a label.
 #[derive(Debug)]
 pub struct LabelResolvingError(String);
 
 impl Display for LabelResolvingError {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         Display::fmt(&self.0, f)
-    }
-}
-
-// =#========================================================================#=
-// LABEL STORAGE
-// =#========================================================================T=
-/// Backend storage for resolved labels.
-///
-/// Implementations map label strings to references that can be stored in tree leaves.
-/// See [`SimpleLabelStorage`] for a basic implementation, or
-/// [`LeafLabelMap`](crate::model::LeafLabelMap) for indexed storage.
-pub trait LabelStorage: Debug {
-    /// The reference type stored in tree leaves.
-    type LabelRef: Clone + Display + Debug;
-
-    /// TODO
-    fn with_capacity(num_labels: usize) -> Self;
-
-    /// Stores a label and returns its reference.
-    ///
-    /// Called during verbatim parsing when labels are added as encountered.
-    fn store_and_ref(&mut self, label: &str) -> Self::LabelRef;
-
-    /// Looks up an existing label, returning its reference if found.
-    ///
-    /// Does not modify storage. Used by NEXUS resolvers to map translation labels.
-    fn check_and_ref(&self, label: &str) -> Option<Self::LabelRef>;
-
-    /// Returns the reference for a label by its 0-based index.
-    ///
-    /// Used for NEXUS integer label resolution (after converting from 1-based).
-    fn index_to_ref(&self, index: usize) -> Self::LabelRef;
-
-    /// Returns the number of labels in storage.
-    fn num_labels(&self) -> usize;
-}
-
-// =#========================================================================#=
-// SIMPLE LABEL STORAGE
-// =#========================================================================S=
-/// Basic [`LabelStorage`] implementation using owned strings.
-///
-/// Stores labels in a [`Vec<String>`] and returns cloned strings as references.
-/// Simple but involves string allocation on each operation.
-///
-/// For more efficient storage with shared labels across trees,
-/// see [`LeafLabelMap`](crate::model::LeafLabelMap).
-#[derive(Debug, Default)]
-pub struct SimpleLabelStorage {
-    labels: Vec<String>,
-}
-
-impl LabelStorage for SimpleLabelStorage {
-    type LabelRef = String;
-
-    fn with_capacity(num_labels: usize) -> Self {
-        Self {
-            labels: Vec::with_capacity(num_labels),
-        }
-    }
-
-    fn store_and_ref(&mut self, label: &str) -> String {
-        self.labels.push(label.to_string());
-        label.to_string()
-    }
-
-    fn check_and_ref(&self, label: &str) -> Option<String> {
-        if self.labels.iter().any(|l| l == label) {
-            Some(label.to_string())
-        } else {
-            None
-        }
-    }
-
-    fn index_to_ref(&self, index: usize) -> String {
-        self.labels[index].clone()
-    }
-
-    fn num_labels(&self) -> usize {
-        self.labels.len()
     }
 }

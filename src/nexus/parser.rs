@@ -1,6 +1,6 @@
 //! TODO
 
-use crate::model::label_resolver::LabelStorage;
+use crate::model::label_storage::LabelStorage;
 use crate::model::{CompactTreeBuilder, LabelResolver};
 use crate::nexus::defs::*;
 use crate::parser::byte_parser::{ByteParser, ConsumeMode::*};
@@ -96,7 +96,7 @@ impl Burnin {
 /// [`NexusParser`] ready for tree retrieval.
 ///
 /// Generic over:
-/// * `B: ByteSource` — the byte source (e.g., [`InMemoryByteSource`])
+/// * `B: ByteSource` — as used by the byte parser
 /// * `T: TreeBuilder` — the tree builder (default: [`CompactTreeBuilder`])
 ///
 /// # Configuration Options
@@ -147,7 +147,7 @@ pub struct NexusParserBuilder<B: ByteSource, T: TreeBuilder> {
 impl NexusParserBuilder<InMemoryByteSource, CompactTreeBuilder> {
     /// Creates a new builder from a file.
     ///
-    /// Entire file is read into memory, wrapped in an [`InMemoryByteSource`].
+    /// Entire file is read into memory.
     /// The builder is initialized with default settings:
     /// - Eager parser mode
     /// - First tree not skipped
@@ -643,7 +643,7 @@ impl<B: ByteSource, T: TreeBuilder> NexusParser<B, T> {
     ///
     /// This extracts the final underlying label storage,
     /// such as the label-to-index mapping used by
-    /// [`LeafLabelMap`](crate::model:LeafLabelMap),
+    /// [`LeafLabelMap`](crate::model::LeafLabelMap),
     /// regardless of eager/lazy configuration.
     ///
     /// # Returns
@@ -652,14 +652,14 @@ impl<B: ByteSource, T: TreeBuilder> NexusParser<B, T> {
         self.newick_parser.into_label_storage()
     }
 
-    /// Consumes this [`NexusParser`] and returns the resulting [`T::Tree`]s
+    /// Consumes this [`NexusParser`] and returns the resulting `T::Tree`s
     /// and [`LabelStorage`].
     ///
     /// This parses all trees and extracts the final underlying label-to-index mapping,
     /// regardless of the eager/lazy configuration.
     ///
     /// # Returns
-    /// A vector of the [`T::Tree`]s and the corresponding [`LabelStorage`]
+    /// A vector of the `T::Tree`s and the corresponding [`LabelStorage`]
     /// from the parsed Nexus file.
     pub fn into_results(mut self) -> Result<(Vec<T::Tree>, T::Storage), ParsingError> {
         match self.mode {
@@ -731,7 +731,7 @@ impl<B: ByteSource, T: TreeBuilder> NexusParser<B, T> {
     ///
     /// Intended for **lazy mode** only. In eager mode return `Ok(None)` as
     /// trees are already parsed -> use [`next_tree_ref`](Self::next_tree_ref)
-    /// or [`into_results`](Self::intor_results) instead.
+    /// or [`into_results`](Self::into_results) instead.
     ///
     /// # Returns
     /// * `Ok(Some(Tree))` - The next tree (owned, lazy mode only)

@@ -1,22 +1,36 @@
-//! TODO
+//! Builder for [`CompactTree`] 
+//! — trees with shared label storage.
 
-use crate::model::label_resolver::LabelStorage;
-use crate::parser::parsing_error::{ParsingError, ParsingErrorType};
+
+use crate::model::label_storage::LabelStorage;
 use crate::model::tree_builder::TreeBuilder;
 use crate::model::vertex::BranchLength;
 use crate::model::{CompactTree, LabelIndex, LeafLabelMap, VertexIndex};
-use crate::model::label_resolver::{LabelResolver, SimpleLabelStorage};
 
-/// Default guess for number of leaves when unknown
-const DEFAULT_NUM_LEAVES_GUESS: usize = 10;
 
-// TODO
+/// Builder that constructs [`CompactTree`] instances.
+///
+/// [`CompactTreeBuilder`] implements [`TreeBuilder`] to construct
+/// [`CompactTree`] instances during parsing. Labels are stored externally in
+/// a [`LeafLabelMap`], with leaves holding only [`LabelIndex`] references.
+///
+/// This is the recommended builder for parsing multiple trees from the same
+/// file, as all trees share a single label map, avoiding string duplication.
+///
+/// # Example
+/// ```ignore
+/// use nexwick::newick::NewickParser;
+///
+/// let mut parser = NewickParser::new_compact_defaults();
+/// let trees = parser.parse_all(&mut byte_parser)?;
+/// let labels = parser.into_label_map();
+/// ```
 pub struct CompactTreeBuilder {
     current_tree: Option<CompactTree>,
 }
 
 impl CompactTreeBuilder {
-    // TODO
+    /// Creates a new builder in the empty state.
     pub fn new() -> Self {
         Self {
             current_tree: None,

@@ -9,8 +9,8 @@ use crate::model::tree_builder::TreeBuilder;
 use crate::parser::byte_parser::ByteParser;
 use crate::parser::byte_source::ByteSource;
 use crate::parser::parsing_error::ParsingError;
-use crate::model::{CompactTreeBuilder, LeafLabelMap, LabelResolver, SimpleTreeBuilder};
-use crate::model::label_resolver::{LabelStorage, SimpleLabelStorage};
+use crate::model::{CompactTreeBuilder, LeafLabelMap, LabelResolver};
+use crate::model::simple_tree_builder::{SimpleTreeBuilder, SimpleLabelStorage};
 
 // =#========================================================================#=
 // NEWICK PARSER
@@ -18,12 +18,9 @@ use crate::model::label_resolver::{LabelStorage, SimpleLabelStorage};
 /// Parser (configuration) for single/multiple Newick format (binary)
 /// phylogenetic trees.
 ///
-/// Generic over [`TreeBuilder`] (construction) and [`LabelStorage`] (for
-/// label resolution). The storage's [`LabelRef`](LabelStorage::LabelRef) must
-/// match the builders [`LabelRef`](TreeBuilder::LabelRef) associated type.
-/// Uses a [`LabelResolver`] (with in turn uses the [`LabelStorage`]) to
-/// resolve any mapping, e.g. as necessary when parsing a Nexus file with a
-/// `TRANSLATE` command.
+/// Generic over [`TreeBuilder`] (construction). Uses a [`LabelResolver`]
+/// (with in turn uses the builders `LabelStorage`) to resolve any mapping,
+/// e.g. as necessary when parsing a Nexus file with a `TRANSLATE` command.
 ///
 /// # Construction
 /// * [`new(tree_builder, resolver)`](Self::new) — generic constructor
@@ -127,7 +124,8 @@ impl<T: TreeBuilder> NewickParser<T> {
         (self.tree_builder, self.resolver)
     }
 
-    /// Consumes the parser and returns the underlying [`LabelStorage`].
+    /// Consumes the parser and returns the underlying
+    /// [`LabelStorage`](crate::model::LabelStorage).
     ///
     /// This should be called after all trees have been parsed to retrieve
     /// the mapping of leaf labels to indices.
@@ -135,7 +133,8 @@ impl<T: TreeBuilder> NewickParser<T> {
         self.resolver.into_label_storage()
     }
 
-    /// Get ref to [`LabelStorage`] of underlying [`LabelResolver`].
+    /// Get ref to [`LabelStorage`](crate::model::LabelStorage)
+    /// of underlying [`LabelResolver`]
     pub fn label_storage(&self) -> &T::Storage {
         self.resolver.label_storage()
     }

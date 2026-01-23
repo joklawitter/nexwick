@@ -74,6 +74,12 @@ impl<L> Vertex<L> {
         }
     }
 
+    /// Creates a new root vertex with optional branch length.
+    ///
+    /// # Arguments
+    /// * `index` - The unique index of this vertex in the tree (arena)
+    /// * `children` - Tuple of child indices
+    /// * `branch_length` - Optional length of incoming edge (for special cases)
     pub fn new_root_with_branch(index: VertexIndex, children: (VertexIndex, VertexIndex), branch_length: Option<BranchLength>) -> Self {
         Vertex::Root {
             index,
@@ -102,7 +108,7 @@ impl<L> Vertex<L> {
     /// # Arguments
     /// * `index` - The unique index of this vertex in the tree (arena)
     /// * `branch_length` - Distance to parent node (non-negative)
-    /// * `label_index` - Index into the label map for this leaf's label
+    /// * `label` -  Label (reference) for this leaf (type depends on tree variant)
     pub fn new_leaf(index: VertexIndex, branch_length: Option<BranchLength>, label: L) -> Self {
         Vertex::Leaf {
             index,
@@ -157,7 +163,7 @@ impl<L> Vertex<L> {
         matches!(self, Vertex::Internal { .. })
     }
 
-    /// Returns the children if this is an internal vertex, else `None`.
+    /// Returns indices of the children if this vertex has any, else `None`.
     pub fn children(&self) -> Option<(usize, usize)> {
         match self {
             Vertex::Root { children, .. } => Some(*children),

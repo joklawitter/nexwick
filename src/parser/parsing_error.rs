@@ -1,7 +1,7 @@
 //! Error types for NEXUS and Newick parser.
 //!
-//! This module provides [ParsingError] and [ParsingErrorType] for representing
-//! and reporting errors that occur during parser of phylogenetic tree files.
+//! This module provides [ParsingError] and [ParsingErrorType] to represent
+//! and report errors that occur during parsing of phylogenetic tree files.
 
 use crate::parser::byte_parser::ByteParser;
 use crate::parser::byte_source::ByteSource;
@@ -18,18 +18,45 @@ const DEFAULT_CONTEXT_LENGTH: usize = 50;
 /// Error types that can occur during NEXUS and NEWICK parser.
 #[derive(PartialEq, Debug, Clone)]
 pub enum ParsingErrorType {
+    /// I/O error from the underlying byte source.
     IoError(String),
+
+    /// Unexpected end of file while parsing.
     UnexpectedEOF,
+
+    /// File does not start with `#NEXUS` header.
     MissingNexusHeader,
+
+    /// Unrecognized or malformed block name in Nexus file.
     InvalidBlockName,
+
+    /// Error in TAXA block structure or content.
     InvalidTaxaBlock(String),
+
+    /// Error in TREES block structure or content.
     InvalidTreesBlock(String),
+
+    /// TRANSLATE command is malformed or inconsistent with TAXA block.
     InvalidTranslateCommand,
+
+    /// Comment opened with `[` but never closed with `]`.
     UnclosedComment,
+
+    /// Malformed Newick tree string.
     InvalidNewickString(String),
+
+    /// General formatting error in input.
     InvalidFormatting,
+
+    /// Label in Newick string could not be resolved
+    /// by [`LabelResolver`](crate::model::LabelResolver).
     UnresolvedLabel(String),
+
+    /// TreeBuilder method called before
+    /// [`init_next`](crate::model::TreeBuilder::init_next).
     BuilderNotInitialized,
+
+    /// Tree structure is invalid (e.g., wrong number of children).
     InvalidTreeStructure,
 }
 
@@ -46,7 +73,7 @@ pub struct ParsingError {
 }
 
 impl ParsingError {
-    /// Create a ParsingError from an error type and parser state
+    /// Create a [`ParsingError`] from an error type and parser state
     pub fn from_parser<S: ByteSource>(kind: ParsingErrorType, parser: &ByteParser<S>) -> Self {
         Self {
             kind,
@@ -55,59 +82,59 @@ impl ParsingError {
         }
     }
 
-    /// Convenience constructor for UnexpectedEOF
+    /// Create a [`ParsingError`] without parser context (for builder errors)
+    pub fn without_context(kind: ParsingErrorType) -> Self {
+        Self { kind, position: 0, context: String::new() }
+    }
+
+    /// Convenience constructor for [`ParsingErrorType::UnexpectedEOF`]
     pub fn unexpected_eof<S: ByteSource>(parser: &ByteParser<S>) -> Self {
         Self::from_parser(ParsingErrorType::UnexpectedEOF, parser)
     }
 
-    /// Convenience constructor for MissingNexusHeader
+    /// Convenience constructor for [`ParsingErrorType::MissingNexusHeader`]
     pub fn missing_nexus_header<S: ByteSource>(parser: &ByteParser<S>) -> Self {
         Self::from_parser(ParsingErrorType::MissingNexusHeader, parser)
     }
 
-    /// Convenience constructor for InvalidBlockName
+    /// Convenience constructor for [`ParsingErrorType::InvalidBlockName`]
     pub fn invalid_block_name<S: ByteSource>(parser: &ByteParser<S>) -> Self {
         Self::from_parser(ParsingErrorType::InvalidBlockName, parser)
     }
 
-    /// Convenience constructor for InvalidTaxaBlock
+    /// Convenience constructor for [`ParsingErrorType::InvalidTaxaBlock`]
     pub fn invalid_taxa_block<S: ByteSource>(parser: &ByteParser<S>, msg: String) -> Self {
         Self::from_parser(ParsingErrorType::InvalidTaxaBlock(msg), parser)
     }
 
-    /// Convenience constructor for InvalidTreesBlock
+    /// Convenience constructor for [`ParsingErrorType::InvalidTreesBlock`]
     pub fn invalid_trees_block<S: ByteSource>(parser: &ByteParser<S>, msg: String) -> Self {
         Self::from_parser(ParsingErrorType::InvalidTreesBlock(msg), parser)
     }
 
-    /// Convenience constructor for InvalidTranslateCommand
+    /// Convenience constructor for [`ParsingErrorType::InvalidTranslateCommand`]
     pub fn invalid_translate_command<S: ByteSource>(parser: &ByteParser<S>) -> Self {
         Self::from_parser(ParsingErrorType::InvalidTranslateCommand, parser)
     }
 
-    /// Convenience constructor for UnclosedComment
+    /// Convenience constructor for [`ParsingErrorType::UnclosedComment`]
     pub fn unclosed_comment<S: ByteSource>(parser: &ByteParser<S>) -> Self {
         Self::from_parser(ParsingErrorType::UnclosedComment, parser)
     }
 
-    /// Convenience constructor for InvalidNewickString
+    /// Convenience constructor for [`ParsingErrorType::InvalidNewickString`]
     pub fn invalid_newick_string<S: ByteSource>(parser: &ByteParser<S>, msg: String) -> Self {
         Self::from_parser(ParsingErrorType::InvalidNewickString(msg), parser)
     }
 
-    /// Convenience constructor for InvalidFormatting
+    /// Convenience constructor for [`ParsingErrorType::InvalidFormatting`]
     pub fn invalid_formatting<S: ByteSource>(parser: &ByteParser<S>) -> Self {
         Self::from_parser(ParsingErrorType::InvalidFormatting, parser)
     }
 
-    /// Convenience constructor for Other error during parser
+    /// Convenience constructor for [`ParsingErrorType::UnresolvedLabel`]
     pub fn unresolved_label<S: ByteSource>(parser: &ByteParser<S>, msg: String) -> Self {
         Self::from_parser(ParsingErrorType::UnresolvedLabel(msg), parser)
-    }
-
-    /// Create a ParsingError without parser context (for builder errors)
-    pub fn without_context(kind: ParsingErrorType) -> Self {
-        Self { kind, position: 0, context: String::new() }
     }
 
     /// Get the error kind

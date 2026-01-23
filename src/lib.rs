@@ -43,7 +43,6 @@
 //! println!("Loaded {} trees with {} taxa", trees.len(), labels.num_labels());
 //! ```
 
-
 pub mod model;
 pub mod newick;
 pub mod nexus;

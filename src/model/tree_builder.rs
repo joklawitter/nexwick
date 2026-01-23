@@ -4,13 +4,32 @@
 //! Parsers call builder methods as they read Newick or Nexus syntax, and the
 //! builder assembles whatever tree structure it wants.
 //!
+//! # Label handling
+//! A [`TreeBuilder`] works together with a [`LabelStorage`] to handle leaf
+//! labels. The key connection is the associated type
+//! [`LabelRef`](TreeBuilder::LabelRef):
+//!
+//! - **[LabelStorage]** gets label strings and returns `LabelRef` values
+//! - **[TreeBuilder]** receives those `LabelRef` values in
+//!     [`add_leaf`](TreeBuilder::add_leaf)
+//!
+//! During parsing, a [`LabelResolver`] wraps the storage and handles
+//! translation (for Nexus files with TRANSLATE blocks)
+//! before calling the storage:
+//! - Newick string contains label string/key (e.g., "1" or "Homo_sapiens")
+//! - `LabelResolver` translates keys for Nexus, or passes verbatim
+//! - `LabelStorage` translates String label into a label (reference) `label_ref`
+//! - `TreeBuilder::add_leaf(branch_len, label_ref) `
+//!
 //! # Built-in implementations
 //! * [`CompactTreeBuilder`] - Builds [`CompactTree`] with labels stored in a shared [`LeafLabelMap`]
-//! * [`SimpleTreeBuilder`] - Builds [`SimpleTree`] with labels embedded directly in leaves
+//! * [`SimpleTreeBuilder`] - Builds [`SimpleTree`] with labels (copies) stored directly in leaves
 //!
 //! # Custom implementations
-//! You can implement [TreeBuilder] to construct your own tree representation,
+//! You can implement [`TreeBuilder`] to construct your own tree representation,
 //! allowing you to reuse the parsing logic without adopting this library's tree model.
+//! Your implementation must also provide a compatible [`LabelStorage`] via the
+//! associated type [`Storage`](TreeBuilder::Storage).
 //!
 //! # Builder lifecycle
 //! A builder can construct multiple trees sequentially:
@@ -20,8 +39,18 @@
 //!   ↑                                                                           │
 //!   └───────────────────────────────────────────────────────────────────────────┘
 //! ```
+// Imports for doc links
+#[allow(unused_imports)]
+use crate::model::{
+    LabelResolver,
+    CompactTreeBuilder,
+    CompactTree,
+    LeafLabelMap,
+    SimpleTreeBuilder,
+    SimpleTree,
+};
 
-use crate::model::label_resolver::LabelStorage;
+use crate::model::label_storage::LabelStorage;
 
 // =#========================================================================#=
 // TREE BUILDER (trait)
@@ -42,17 +71,17 @@ use crate::model::label_resolver::LabelStorage;
 /// 3. [`set_name`](Self::set_name) -> optionally assign a name
 /// 4. [`finish_tree`](Self::finish_tree) -> finalize and return the tree
 ///
-/// After [`finish_tree`], the builder returns to an empty state,
-/// ready for [`init_next`] again.
+/// After `finish_tree`, the builder returns to an empty state,
+/// ready for `init_next` again.
 ///
 /// # Implementation strategies
 /// There are (at least) two common approaches:
 /// * **Separate builder:** A dedicated struct holds construction state and
-///   produces the tree on [`finish_tree`]. This keeps the tree type clean and
+///   produces the tree on `finish_tree`. This keeps the tree type clean and
 ///   allows the builder to hold temporary data (like a [`LeafLabelMap`] shared
 ///   across multiple trees).
 /// - **Self-building tree:** The tree type implements [`TreeBuilder`]
-///   directly, building itself in place. [`finish_tree`] may perform final
+///   directly, building itself in place. `finish_tree` may perform final
 ///   validation and returns `self`. This avoids an extra type but couples
 ///   construction logic into the tree.
 pub trait TreeBuilder {
@@ -73,29 +102,64 @@ pub trait TreeBuilder {
     /// The tree type produced by this builder.
     type Tree;
 
-    // TODO
+    /// The [`LabelStorage`] type compatible with this builder.
+    ///
+    /// The constraint `LabelRef = Self::LabelRef` ensures the storage
+    /// produces references that this builder can accept in
+    /// [`add_leaf`](Self::add_leaf).
+    /// The parser uses [`create_storage`](Self::create_storage) to
+    /// instantiate this type before parsing begins.
     type Storage: LabelStorage<LabelRef = Self::LabelRef>;
 
-    // TODO
+    /// Creates a new [`LabelStorage`] instance for parsing.
+    ///
+    /// Called by the parser before parsing begins. The `capacity` hint
+    /// is typically the expected number of leaves (from Nexus NTAX).
     fn create_storage(capacity: usize) -> Self::Storage;
 
-    // TODO
+    /// Prepares the builder for constructing a new tree.
+    ///
+    /// Called by the parser before each tree. Implementations should reset
+    /// internal state and optionally pre-allocate based on `num_leaves`.
+    ///
+    /// # Arguments
+    /// * `num_leaves` — Expected number of leaves (hint for allocation)
     fn init_next(&mut self, num_leaves: usize);
 
-    /// TODO
-    /// 
-    /// # Error Handling
-    /// Assuming that most labels are well-formed and can be resolved
-    /// when parsing a Nexus file with a TRANSLATE command, which maps
-    /// keys in Newick strings to the actual labels, the method does not
-    /// return a Result. So implementations must take care to deal with
-    /// labels passed on that they cannot resolve. 
+    /// Adds a leaf vertex to the tree under construction.
+    ///
+    /// Called when the parser encounters a leaf (taxon) in the Newick string.
+    /// Returns a vertex index that the parser will later pass to
+    /// [`add_internal`](Self::add_internal) or [`add_root`](Self::add_root)
+    /// to establish parent-child relationships.
+    ///
+    /// # Arguments
+    /// * `branch_len` — Branch length to parent, if specified in the Newick
+    /// * `label` — Label reference obtained from the [LabelStorage]
     fn add_leaf(&mut self, branch_len: Option<f64>, label: Self::LabelRef) -> Self::VertexIdx;
 
-    /// TODO
+    /// Adds an internal (non-root) vertex with two children.
+    ///
+    /// Called when the parser encounters an internal vertex.
+    /// The children are vertex indices returned by previous `add_*` calls.
+    /// Returns a vertex index that the parser will later pass to
+    /// [`add_internal`](Self::add_internal) or [`add_root`](Self::add_root)
+    /// to establish parent-child relationships.
+    ///
+    /// # Arguments
+    /// * `children` — Indices of the left and right child vertices
+    /// * `branch_len` — Branch length to parent, if specified
     fn add_internal(&mut self, children: (Self::VertexIdx, Self::VertexIdx), branch_len: Option<f64>) -> Self::VertexIdx;
 
-    /// TODO
+    /// Adds the root vertex, completing the tree structure.
+    ///
+    /// Called when the parser finished parsing the Newick string
+    /// with the root. After this, only [`set_name`](Self::set_name)
+    /// and [`finish_tree`](Self::finish_tree) remain.
+    ///
+    /// # Arguments
+    /// * `children` — Indices of the root's two child vertices
+    /// * `branch_len` — Root branch length (rare, but allowed in Newick)
     fn add_root(&mut self, children: (Self::VertexIdx, Self::VertexIdx), branch_len: Option<f64>) -> Self::VertexIdx;
 
     /// Sets the name of the currently constructed tree.

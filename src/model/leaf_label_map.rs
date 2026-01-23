@@ -1,10 +1,10 @@
 //! Leaf label module for phylogenetic tree representation.
 //!
-//! [LeafLabelMap] implements joined storage and lookup
+//! [`LeafLabelMap`] implements joined storage and lookup
 //! for leaf labels of trees on the same labels/taxa.
-//! Uses type [LabelIndex] for indices.
+//! Uses type [`LabelIndex`] for indices.
 
-use crate::model::label_resolver::LabelStorage;
+use crate::model::label_storage::LabelStorage;
 use std::collections::HashMap;
 use std::fmt;
 
@@ -16,10 +16,10 @@ pub type LabelIndex = usize;
 // =#========================================================================#=
 /// Maps leaf labels (strings) to compact indices for efficient storage.
 ///
-/// This bidirectional mapping allows multiple trees with the same taxa to share
-/// a single label storage, with each leaf referencing labels by [LabelIndex].
-/// Labels are deduplicated automatically - inserting the same label twice returns
-/// the same index.
+/// This bidirectional mapping allows multiple trees with the same taxa to
+/// share a single label storage, with each leaf referencing labels by
+/// [`LabelIndex`]. Labels are deduplicated automatically: inserting the same
+/// label twice returns the same index.
 ///
 /// # Example
 /// ```
@@ -104,8 +104,8 @@ impl LeafLabelMap {
     ///
     /// # Returns
     /// `Some(index)` if the label exists, `None` otherwise
-    pub fn get_index(&self, s: &str) -> Option<LabelIndex> {
-        self.map.get(s).map(|&index| index)
+    pub fn get_index(&self, label: &str) -> Option<LabelIndex> {
+        self.map.get(label).map(|&index| index)
     }
 
     /// Retrieves the leaf label for a given index.

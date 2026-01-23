@@ -1,9 +1,10 @@
 //! Newick format parser and writer for phylogenetic trees.
 //!
 //! This module provides [`NewickParser`] to parse Newick format strings
-//! into tree structures. The parser uses a [`TreeBuilder`] internally,
-//! which also resolves labels. It may be used directly to parse Newick strings
-//! or when parsing a Nexus file.
+//! into tree structures. The parser uses a
+//! [`TreeBuilder`](crate::model::TreeBuilder) internally, which also resolves
+//! labels. It may be used directly to parse Newick strings or when parsing a
+//! Nexus file.
 //!
 //! # Quick API
 //! For simple use cases with default settings:

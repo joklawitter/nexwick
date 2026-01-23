@@ -46,7 +46,7 @@ mod defs;
 mod parser;
 mod writer;
 
-pub use self::parser::{NexusParserBuilder, NexusParser};
+pub use self::parser::{NexusParserBuilder, NexusParser, Burnin};
 pub use self::writer::NexusWriter;
 
 use crate::ParsingError;

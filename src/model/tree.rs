@@ -1,8 +1,11 @@
 //! Tree module for phylogenetic tree representations.
 //!
 //! Provides core data structures for representing phylogenetic trees:
-//! * [GenTree] - Main tree structure using the arena pattern for efficient memory layout.
-//! * [VertexIndex] - Type used to index vertices.
+//! * [`GenTree<LabelRef>`] - Main tree structure using the arena pattern
+//!   for efficient memory layout, generic over way vertices handle labels.
+//! * [`CompactTree`] as realization with [`LabelIndex`]
+//! * [`SimpleTree`] as realization with [`String`]
+//! * [`VertexIndex`] as type used to index vertices in tree
 
 use crate::newick;
 use crate::newick::NewickStyle;
@@ -23,48 +26,30 @@ const NO_ROOT_SET_INDEX: VertexIndex = usize::MAX;
 // =$========================================================================$=
 // TREE
 // =$========================================================================$=
-/// A binary phylogenetic tree represented using the arena pattern on [Vertex].
+/// A binary phylogenetic tree represented using the arena pattern
+/// on [`Vertex`].
 ///
-/// Vertices are stored in a contiguous vector and referenced by [VertexIndex].
-/// Aim is to avoid referencing troubles as well as to provide efficient memory layout
-/// and cache locality for traversal operations.
+/// Vertices are stored in a contiguous vector and referenced by
+/// [`VertexIndex`]. Aim is to avoid referencing troubles as well as to provide
+/// efficient memory layout and cache locality for traversal operations.
+///
+/// Generic over `L` (LabelRef), representing how leaves handle labels
+/// (e.g. as index or String).
 ///
 /// # Structure
 /// - All vertices (root, internal, and leaves) are stored in the arena
 /// - Index of root is maintained
-/// - No assumption on order of indices is maintained (e.g. leaves must not be first `n` indices)
-/// - Leaves contain a [LabelIndex] pointing into a shared [LeafLabelMap]
+/// - No assumption on order of indices is maintained
+///   (e.g. leaves must not be first `n` indices)
+/// - Leaves handle labels via their label reference type `L`,
+/// e.g. implementation [`CompactTree`] pointing into a shared [`LeafLabelMap`].
 /// - Branch lengths are optional, but if provided must be non-negative
 ///
 /// # Construction
-/// To construct a tree, specify its size based on the number of leaves, then add vertices one by one.
-/// Bottom-up construction is likely easiest, but indices can also be managed otherwise.
-/// Test validity with [GenTree::is_valid].
-///
-/// # Example
-/// ```
-/// use nexwick::model::tree::GenTree;
-/// use nexwick::model::leaf_label_map::LeafLabelMap;
-/// use nexwick::model::vertex::{BranchLength, Vertex};
-///
-/// // Create a tree: ((A:0.2,B:0.2):0.2,C:0.4):0.0;
-/// let num_leaves = 3;
-/// let mut tree = GenTree::new(num_leaves);
-/// let mut labels = LeafLabelMap::new(num_leaves);
-///
-/// // Add leaves (bottom-up construction)
-/// let index_a = tree.add_leaf(Some(BranchLength::new(0.2)), labels.get_or_insert("A"));
-/// let index_b = tree.add_leaf(Some(BranchLength::new(0.2)), labels.get_or_insert("B"));
-/// let index_c = tree.add_leaf(Some(BranchLength::new(0.4)), labels.get_or_insert("C"));
-///
-/// // Add internal vertex with A and B as children
-/// let index_internal = tree.add_internal_vertex((index_a, index_b), Some(BranchLength::new(0.2)));
-///
-/// // Add root with internal node and C as children
-/// tree.add_root((index_internal, index_c));
-///
-/// assert!(tree.is_valid());
-/// ```
+/// To construct a tree, specify its size based on the number of leaves,
+/// then add vertices one by one. Bottom-up construction is likely easiest,
+/// but indices can also be managed otherwise.
+/// Test validity with [`GenTree::is_valid`].
 #[derive(Debug, Clone)]
 pub struct GenTree<L> {
     /// Number of leaf nodes in the tree
@@ -168,7 +153,7 @@ impl<L> GenTree<L> {
     ///
     /// # Arguments
     /// * `branch_length` - Length of incoming branch, i.e. distance to parent (non-negative)
-    /// * `label_index` - Index into the leaf label map for this leaf's name
+    /// * `label` - Label (ref) for this leaf (type depends on tree variant)
     ///
     /// # Returns
     /// The index of the newly created leaf vertex.
@@ -222,17 +207,25 @@ impl<L> GenTree<L> {
     /// # Arguments
     /// * `index` - The index of the vertex to retrieve
     ///
-    /// `Some(&Vertex)` if the index is valid, `None` otherwise
+    /// # Returns
+    /// `Some(&Vertex)` if the index is valid
+    ///
+    /// # Panics
+    /// Panics if `index` is out of bounds.
     pub fn vertex(&self, index: usize) -> &Vertex<L> {
         &self[index]
     }
 
-    /// Returns a reference to the vertex at the given index.
+    /// Returns a mutable reference to the vertex at the given index.
     ///
     /// # Arguments
     /// * `index` - The index of the vertex to retrieve
     ///
-    /// `Some(&Vertex)` if the index is valid, `None` otherwise
+    /// # Returns
+    /// `Some(&mut Vertex)` if the index is valid
+    ///
+    /// # Panics
+    /// Panics if `index` is out of bounds.
     pub fn vertex_mut(&mut self, index: usize) -> &mut Vertex<L> {
         &mut self.vertices[index]
     }
@@ -263,8 +256,12 @@ impl<L> GenTree<L> {
         self.height_of(&self.vertices[self.root_index])
     }
 
-    /// Returns the height of the given vertex (assuming it is ultrametric; undefined otherwise),
-    /// that is, the distance of the given vertex to any/each leaf.
+    /// Returns the height of the given vertex (assuming it is ultrametric;
+    /// result undefined otherwise), that is, the distance of the given vertex
+    /// to any/each leaf.
+    ///
+    /// # Arguments
+    /// * `vertex` - Vertex for which you want the height
     pub fn height_of(&self, vertex: &Vertex<L>) -> f64 {
         let mut height = 0.0;
         loop {
@@ -472,14 +469,13 @@ impl<L> std::ops::IndexMut<VertexIndex> for GenTree<L> {
 }
 
 // ============================================================================
-// Printing (pub)
+// Printing (pub, only for CompactTree)
 // ============================================================================
 impl CompactTree {
-    /// Conventions method to convert this tree to a Newick string using [io::writer::newick::to_newick()].
+    /// Convenience method to convert this tree to a Newick string
     pub fn to_newick(&self, style: &NewickStyle, leaf_label_map: Option<&LeafLabelMap>) -> String {
         newick::to_newick(style, &self, leaf_label_map)
     }
-
 
     /// Prints a visual representation of the tree to the console.
     ///
