@@ -1,4 +1,4 @@
-use nexus_parser::model::leaf_label_map::LeafLabelMap;
+use nexwick::model::LeafLabelMap;
 
 #[test]
 fn test_get_or_insert_new_label() {

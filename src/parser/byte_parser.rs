@@ -486,7 +486,7 @@ impl<S: ByteSource> ByteParser<S> {
 ///
 /// # Examples
 /// ```
-/// use nexwick::parser::parser::byte_parser::{ByteParser, ConsumeMode};
+/// use nexwick::parser::byte_parser::{ByteParser, ConsumeMode};
 ///
 /// let mut parser = ByteParser::from_str("TREE t1=((A:0.5,B:0.5):0.3,C:0.8):0.0");
 ///

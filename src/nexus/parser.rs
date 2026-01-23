@@ -549,7 +549,6 @@ impl<B: ByteSource, T: TreeBuilder> NexusParser<B, T> {
             // Parse all trees, then filter out unwanted ones
             let mut all_trees = Vec::new();
             self.parse_tree_block_trees(&mut all_trees)?;
-
             self.configure_tree_counts(all_trees.len());
 
             // Keep only the trees after skip_first and burnin
@@ -558,9 +557,10 @@ impl<B: ByteSource, T: TreeBuilder> NexusParser<B, T> {
                 all_trees
             } else {
                 // Skip unwanted trees
-                all_trees.into_iter()
+                let remaining_trees: Vec<_> = all_trees.into_iter()
                     .skip(self.start_tree_pos)
-                    .collect()
+                    .collect();
+                remaining_trees
             };
 
             self.mode = TreeParsingMode::Eager { trees };
@@ -739,7 +739,7 @@ impl<B: ByteSource, T: TreeBuilder> NexusParser<B, T> {
     /// * `Err(ParsingError)` - Parsing failed (lazy mode only)
     pub fn next_tree(&mut self) -> Result<Option<T::Tree>, ParsingError> {
         match &self.mode {
-            TreeParsingMode::Eager { trees } => {
+            TreeParsingMode::Eager { trees: _ } => {
                 // Trees already parsed — use next_tree_ref() instead
                 Ok(None)
             }
@@ -821,9 +821,9 @@ impl<B: ByteSource, T: TreeBuilder> NexusParser<B, T> {
         Ok(NexusBlock::from_name(&block_name))
     }
 
-    /// Skips block, e.g. continuing until encountering `END;`.
+    /// Skips block, e.g. continuing until encountering and consuming `END;`.
     fn skip_to_block_end(&mut self) -> Result<(), ParsingError> {
-        if !self.byte_parser.consume_until_sequence(BLOCK_END, Exclusive) {
+        if !self.byte_parser.consume_until_sequence(BLOCK_END, Inclusive) {
             return Err(ParsingError::unexpected_eof(&self.byte_parser));
         }
 
@@ -1136,7 +1136,7 @@ impl<B: ByteSource, T: TreeBuilder> NexusParser<B, T> {
         self.byte_parser.skip_comment_and_whitespace()?;
 
         // Skip the Newick string (everything until and including semicolon)
-        if !self.byte_parser.consume_until(b';', Exclusive) {
+        if !self.byte_parser.consume_until(b';', Inclusive) {
             return Err(ParsingError::unexpected_eof(&self.byte_parser));
         }
 

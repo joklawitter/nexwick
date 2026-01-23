@@ -108,7 +108,7 @@ impl<L> GenTree<L> {
     /// The index of the newly created root vertex.
     pub fn add_root(&mut self, children: (VertexIndex, VertexIndex), branch_length: Option<BranchLength>) -> VertexIndex {
         let index = self.vertices.len();
-        self.vertices.push(Vertex::new_root_with_branch(index, children, branch_length));
+        self.vertices.push(Vertex::new_root(index, children, branch_length));
 
         self.root_index = index;
         self[children.0].set_parent(index);
@@ -264,14 +264,15 @@ impl<L> GenTree<L> {
     /// * `vertex` - Vertex for which you want the height
     pub fn height_of(&self, vertex: &Vertex<L>) -> f64 {
         let mut height = 0.0;
+        let mut current_vertex = vertex;
         loop {
-            let child_index = vertex.children().unwrap().0;
-            let vertex: &Vertex<L> = &self.vertices[child_index];
-            height = height + *vertex.branch_length().unwrap();
-
-            if vertex.is_leaf() {
+            if current_vertex.is_leaf() {
                 break;
             }
+
+            let child_index = current_vertex.children().unwrap().0;
+            current_vertex = &self.vertices[child_index];
+            height += *current_vertex.branch_length().unwrap();
         }
 
         height
@@ -341,7 +342,6 @@ impl<L: ValidLabel> GenTree<L> {
     /// Checks:
     /// - Root index is valid and points to a Root vertex
     /// - All vertex indices match their position in the arena
-    /// - There are the right number of leaves and only one root
     /// - All child indices are valid and point back to correct parent
     /// - All parent indices are valid and include this vertex as a child
     /// - Root vertex has no parent set, all others have valid parent set
@@ -386,9 +386,6 @@ impl<L: ValidLabel> GenTree<L> {
             // Check that there are not too many leaves
             if vertex.is_leaf() {
                 leaf_count += 1;
-                if leaf_count > self.num_leaves_init {
-                    return false;
-                }
             }
 
             // Check children references
@@ -439,14 +436,16 @@ impl<L: ValidLabel> GenTree<L> {
             // Check leaves have valid label indices
             if vertex.is_leaf() {
                 let label = vertex.label();
-                if label.is_none_or(|l| l.is_valid_for_tree(self.num_leaves_init)) {
+                if label.is_none_or(|l| !l.is_valid_for_tree(self.num_leaves())) {
                     return false;
                 }
             }
         }
 
-        // Check that there are enough leaves
-        if leaf_count < self.num_leaves_init {
+        // Check leaf count matches binary tree invariant:
+        // for n leaves, there are 2n-1 vertices
+        let expected_leaf_count = (self.vertices.len() + 1) / 2;
+        if leaf_count != expected_leaf_count {
             return false;
         }
 
@@ -572,7 +571,7 @@ impl<L> GenTree<L> {
     /// let mut labels = LeafLabelMap::new(2);
     /// let a = tree.add_leaf(Some(BranchLength::new(1.0)), labels.get_or_insert("A"));
     /// let b = tree.add_leaf(Some(BranchLength::new(1.0)), labels.get_or_insert("B"));
-    /// tree.add_root((a, b));
+    /// tree.add_root_without_branch((a, b));
     ///
     /// let indices: Vec<_> = tree.post_order_iter().map(|v| v.index()).collect();
     /// // Leaves come before root
@@ -596,7 +595,7 @@ impl<L> GenTree<L> {
     /// let mut labels = LeafLabelMap::new(2);
     /// let a = tree.add_leaf(Some(BranchLength::new(1.0)), labels.get_or_insert("A"));
     /// let b = tree.add_leaf(Some(BranchLength::new(1.0)), labels.get_or_insert("B"));
-    /// tree.add_root((a, b));
+    /// tree.add_root_without_branch((a, b));
     ///
     /// let indices: Vec<_> = tree.pre_order_iter().map(|v| v.index()).collect();
     /// // Root comes before leaves

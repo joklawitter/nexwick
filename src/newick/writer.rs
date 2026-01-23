@@ -76,7 +76,7 @@ pub fn write_newick_file(file: File, trees: &[CompactTree], leaf_label_map: Opti
 ///
 /// # Example
 /// ```
-/// use nexwick::parser::writer::writer::NewickStyle;
+/// use nexwick::newick::NewickStyle;
 /// use nexwick::model::tree::GenTree;
 /// use nexwick::model::leaf_label_map::LeafLabelMap;
 /// use nexwick::model::vertex::BranchLength;
@@ -85,7 +85,7 @@ pub fn write_newick_file(file: File, trees: &[CompactTree], leaf_label_map: Opti
 /// let mut labels = LeafLabelMap::new(2);
 /// let a = tree.add_leaf(Some(BranchLength::new(1.0)), labels.get_or_insert("A"));
 /// let b = tree.add_leaf(Some(BranchLength::new(2.0)), labels.get_or_insert("B"));
-/// tree.add_root((a, b));
+/// tree.add_root_without_branch((a, b));
 ///
 /// let newick = tree.to_newick(&NewickStyle::Label, Some(&labels));
 /// assert_eq!(newick, "(A:1,B:2);");

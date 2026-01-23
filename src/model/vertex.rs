@@ -3,6 +3,7 @@
 //! Main component is the [Vertex] enum, coming in varieties `Root`, `Internal`, and `Leaf`,
 //! and uses [BranchLength] structure to store branch/edge lengths.
 
+use std::fmt;
 use crate::model::tree::VertexIndex;
 use std::ops::Deref;
 
@@ -61,30 +62,30 @@ pub enum Vertex<L> {
 }
 
 impl<L> Vertex<L> {
-    /// Creates a new root vertex.
-    ///
-    /// # Arguments
-    /// * `index` - The unique index of this vertex in the tree (arena)
-    /// * `children` - Tuple of child indices
-    pub fn new_root(index: VertexIndex, children: (VertexIndex, VertexIndex)) -> Self {
-        Vertex::Root {
-            index,
-            children,
-            branch_length: None,
-        }
-    }
-
     /// Creates a new root vertex with optional branch length.
     ///
     /// # Arguments
     /// * `index` - The unique index of this vertex in the tree (arena)
     /// * `children` - Tuple of child indices
     /// * `branch_length` - Optional length of incoming edge (for special cases)
-    pub fn new_root_with_branch(index: VertexIndex, children: (VertexIndex, VertexIndex), branch_length: Option<BranchLength>) -> Self {
+    pub fn new_root(index: VertexIndex, children: (VertexIndex, VertexIndex), branch_length: Option<BranchLength>) -> Self {
         Vertex::Root {
             index,
             children,
             branch_length,
+        }
+    }
+
+    /// Creates a new root vertex.
+    ///
+    /// # Arguments
+    /// * `index` - The unique index of this vertex in the tree (arena)
+    /// * `children` - Tuple of child indices
+    pub fn new_root_without_branch(index: VertexIndex, children: (VertexIndex, VertexIndex)) -> Self {
+        Vertex::Root {
+            index,
+            children,
+            branch_length: None,
         }
     }
 
@@ -216,6 +217,33 @@ impl<L> Vertex<L> {
     }
 }
 
+impl<L: fmt::Display> fmt::Display for Vertex<L> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Vertex::Root { index, children, branch_length } => {
+                write!(
+                    f,
+                    "Root(idx: {}, children: [{}, {}], len: {:?})",
+                    index, children.0, children.1, branch_length
+                )
+            }
+            Vertex::Internal { index, parent, children, branch_length } => {
+                write!(
+                    f,
+                    "Internal(idx: {}, parent: {}, children: [{}, {}], len: {:?})",
+                    index, parent, children.0, children.1, branch_length
+                )
+            }
+            Vertex::Leaf { index, label, parent, branch_length } => {
+                write!(
+                    f,
+                    "Leaf(idx: {}, label: {}, parent: {}, len: {:?})",
+                    index, label, parent, branch_length
+                )
+            }
+        }
+    }
+}
 
 // =#========================================================================#=
 // BRANCH LENGTH

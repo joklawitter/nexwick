@@ -47,7 +47,7 @@ use crate::model::simple_tree_builder::{SimpleTreeBuilder, SimpleLabelStorage};
 ///
 /// # Example
 /// ```
-/// use nexwick::NewickParser;
+/// use nexwick::newick::NewickParser;
 /// use nexwick::parser::byte_parser::ByteParser;
 ///
 /// let input = "((A_meleagrides:1.0,A_vulturinum:1.0):0.5,(N_meleagris:1.0,G_plumifera:1.0):0.5);";
@@ -55,7 +55,7 @@ use crate::model::simple_tree_builder::{SimpleTreeBuilder, SimpleLabelStorage};
 /// let mut newick_parser = NewickParser::new_compact_defaults();
 ///
 /// let tree = newick_parser.parse_str(&mut byte_parser).unwrap();
-/// let labels = newick_parser.into_leaf_label_map();
+/// let labels = newick_parser.into_label_storage();
 /// ```
 pub struct NewickParser<T: TreeBuilder> {
     know_num_leaves: bool,

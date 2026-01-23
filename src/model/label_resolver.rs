@@ -88,7 +88,7 @@ impl<S: LabelStorage> LabelResolver<S> {
     ///
     /// # Panics
     /// Panics if any label in `translation` is not found in `storage`.
-    pub(crate) fn new_nexus_labels_resolver(translation: HashMap<String, String>, mut storage: S) -> Self {
+    pub(crate) fn new_nexus_labels_resolver(translation: HashMap<String, String>, storage: S) -> Self {
         // Instead of going from key -> label and then from label -> LabelRef,
         // we create a direct mapping key -> LabelRef
         let mut index_map = HashMap::with_capacity(translation.len());
@@ -116,7 +116,7 @@ impl<S: LabelStorage> LabelResolver<S> {
     /// - Any key is out of bounds (must be 1..=num_labels)
     /// - Any label is not found in `storage`
     /// - Keys are not consecutive/complete (missing indices)
-    pub(crate) fn new_nexus_integer_labels_resolver(translation: HashMap<String, String>, mut storage: S) -> Self {
+    pub(crate) fn new_nexus_integer_labels_resolver(translation: HashMap<String, String>, storage: S) -> Self {
         let num_labels = storage.num_labels();
 
         // Validate all keys are valid integers and build index array;

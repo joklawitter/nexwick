@@ -1,5 +1,5 @@
-use nexus_parser::io::parser::byte_parser::ConsumeMode::{Exclusive, Inclusive};
-use nexus_parser::io::parser::byte_parser::{ByteParser, ConsumeMode};
+use nexwick::parser::byte_parser::ConsumeMode::{Exclusive, Inclusive};
+use nexwick::parser::byte_parser::{ByteParser, ConsumeMode};
 
 #[test]
 fn test_skip_whitespace() {

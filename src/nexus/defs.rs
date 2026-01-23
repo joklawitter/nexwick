@@ -3,9 +3,6 @@
 //! This module contains byte string constants for parser and writing phylogenetic
 //! tree files in NEXUS and Newick formats, as well as enum definitions for NEXUS blocks.
 
-/// Newick label delimiters: parentheses, comma, colon, semicolon, whitespace
-pub(crate) const NEWICK_LABEL_DELIMITERS: &[u8] = b"([,:; \n\t\r)]";
-
 /// NEXUS label delimiters: comma, semicolon, whitespace
 pub(crate) const NEXUS_LABEL_DELIMITERS: &[u8] = b" ,;\t\n\r";
 
