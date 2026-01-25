@@ -1,13 +1,14 @@
 #![allow(unused)]
 
-use nexwick::model::{LabelIndex, Vertex};
 use nexwick::model::vertex::BranchLength;
+use nexwick::model::{LabelIndex, Vertex};
 
 // ============= Branch Length Tests =============
 #[test]
 fn test_branch_lengths() {
     let test_length = 1.234;
-    let vertex: Vertex<LabelIndex> = Vertex::new_internal(5, (1, 2), Some(BranchLength::new(test_length)));
+    let vertex: Vertex<LabelIndex> =
+        Vertex::new_internal(5, (1, 2), Some(BranchLength::new(test_length)));
     assert_eq!(*vertex.branch_length().unwrap(), test_length);
 }
 
@@ -32,7 +33,8 @@ fn test_is_x() {
 
 #[test]
 fn test_nonleaf_vertex_has_no_label() {
-    let internal: Vertex<LabelIndex> = Vertex::new_internal(0, (1, 2), Some(BranchLength::new(0.5)));
+    let internal: Vertex<LabelIndex> =
+        Vertex::new_internal(0, (1, 2), Some(BranchLength::new(0.5)));
     assert_eq!(internal.label(), None);
 
     let root: Vertex<LabelIndex> = Vertex::new_root(0, (12, 34), Some(BranchLength::new(0.6)));
@@ -58,5 +60,3 @@ fn test_leaf_has_no_children() {
     let vertex: Vertex<LabelIndex> = Vertex::new_leaf(0, Some(BranchLength::new(0.5)), 42);
     assert_eq!(vertex.children(), None);
 }
-
-

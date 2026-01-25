@@ -1,10 +1,10 @@
 //! Newick format file writing for
 
-use crate::parser::utils::escape_label;
-use crate::model::leaf_label_map::LeafLabelMap;
 use crate::model::CompactTree;
+use crate::model::leaf_label_map::LeafLabelMap;
 use crate::model::tree::VertexIndex;
 use crate::model::vertex::BranchLength;
+use crate::parser::utils::escape_label;
 use std::fs::File;
 use std::io::{self, BufWriter, Write};
 
@@ -44,15 +44,25 @@ pub enum NewickStyle {
 /// let file = File::create("trees.nwk")?;
 /// write_newick_file(file, &your_trees, &your_label_map)?;
 /// ```
-pub fn write_newick_file(file: File, trees: &[CompactTree], leaf_label_map: Option<&LeafLabelMap>) -> io::Result<()> {
+pub fn write_newick_file(
+    file: File,
+    trees: &[CompactTree],
+    leaf_label_map: Option<&LeafLabelMap>,
+) -> io::Result<()> {
     if trees.len() == 0 {
         return Ok(());
     }
 
     let mut writer = BufWriter::new(file);
-    let estimated_capacity = estimate_newick_len(&NewickStyle::Label, trees.first().unwrap(), leaf_label_map);
+    let estimated_capacity =
+        estimate_newick_len(&NewickStyle::Label, trees.first().unwrap(), leaf_label_map);
     for tree in trees {
-        let newick = to_newick_with_capacity(&NewickStyle::Label, tree, leaf_label_map, estimated_capacity);
+        let newick = to_newick_with_capacity(
+            &NewickStyle::Label,
+            tree,
+            leaf_label_map,
+            estimated_capacity,
+        );
         writer.write_all(newick.as_bytes())?;
         writer.write_all(b"\n")?;
     }
@@ -90,7 +100,11 @@ pub fn write_newick_file(file: File, trees: &[CompactTree], leaf_label_map: Opti
 /// let newick = tree.to_newick(&NewickStyle::Label, Some(&labels));
 /// assert_eq!(newick, "(A:1,B:2);");
 /// ```
-pub fn to_newick(style: &NewickStyle, tree: &CompactTree, leaf_label_map: Option<&LeafLabelMap>) -> String {
+pub fn to_newick(
+    style: &NewickStyle,
+    tree: &CompactTree,
+    leaf_label_map: Option<&LeafLabelMap>,
+) -> String {
     // Abort right away if arguments don't match
     if matches!(style, NewickStyle::Label) && leaf_label_map.is_none() {
         return String::new();
@@ -113,7 +127,12 @@ pub fn to_newick(style: &NewickStyle, tree: &CompactTree, leaf_label_map: Option
 ///
 /// # Returns
 /// A Newick format string terminated with `;`
-pub(crate) fn to_newick_with_capacity(style: &NewickStyle, tree: &CompactTree, leaf_label_map: Option<&LeafLabelMap>, estimated_capacity: usize) -> String {
+pub(crate) fn to_newick_with_capacity(
+    style: &NewickStyle,
+    tree: &CompactTree,
+    leaf_label_map: Option<&LeafLabelMap>,
+    estimated_capacity: usize,
+) -> String {
     // Helper for adding branch lengths
     fn build_newick_branch_length(newick: &mut String, branch_length: Option<BranchLength>) {
         if let Some(branch_length) = branch_length {
@@ -123,7 +142,13 @@ pub(crate) fn to_newick_with_capacity(style: &NewickStyle, tree: &CompactTree, l
     }
 
     // Recursive helper for building the Newick string
-    fn build_newick(tree: &CompactTree, newick: &mut String, index: VertexIndex, style: &NewickStyle, leaf_label_map: Option<&LeafLabelMap>) {
+    fn build_newick(
+        tree: &CompactTree,
+        newick: &mut String,
+        index: VertexIndex,
+        style: &NewickStyle,
+        leaf_label_map: Option<&LeafLabelMap>,
+    ) {
         let vertex = &tree[index];
 
         if vertex.is_leaf() {
@@ -160,7 +185,13 @@ pub(crate) fn to_newick_with_capacity(style: &NewickStyle, tree: &CompactTree, l
 
     let mut newick = String::with_capacity(estimated_capacity);
 
-    build_newick(&tree, &mut newick, tree.root_index(), &style, leaf_label_map);
+    build_newick(
+        &tree,
+        &mut newick,
+        tree.root_index(),
+        &style,
+        leaf_label_map,
+    );
     newick.push(';');
 
     newick
@@ -179,9 +210,13 @@ pub(crate) fn to_newick_with_capacity(style: &NewickStyle, tree: &CompactTree, l
 ///
 /// # Returns
 /// Estimated number of characters needed for the Newick representation
-pub(crate) fn estimate_newick_len(style: &NewickStyle, tree: &CompactTree, leaf_label_map: Option<&LeafLabelMap>) -> usize {
+pub(crate) fn estimate_newick_len(
+    style: &NewickStyle,
+    tree: &CompactTree,
+    leaf_label_map: Option<&LeafLabelMap>,
+) -> usize {
     // Each internal node: "(,)" ~= 3 chars
-    const INTERNAL_NODE_CHARS: usize = 3;  // "(,)"
+    const INTERNAL_NODE_CHARS: usize = 3; // "(,)"
     // Branch lengths: ~20 chars each (e.g., ":0.009529961339106089")
     const BRANCH_LENGTH_CHARS: usize = 20;
 
@@ -193,19 +228,16 @@ pub(crate) fn estimate_newick_len(style: &NewickStyle, tree: &CompactTree, leaf_
     let num_leaves = tree.num_leaves();
     let label_capacity = match style {
         NewickStyle::Label => {
-            let total_label_len: usize = leaf_label_map.unwrap()
+            let total_label_len: usize = leaf_label_map
+                .unwrap()
                 .labels()
                 .iter()
                 .map(|s| escape_label(s).len())
                 .sum();
             total_label_len
         }
-        NewickStyle::ZeroIndexed => {
-            calculate_index_digit_capacity(num_leaves, true)
-        }
-        NewickStyle::OneIndexed => {
-            calculate_index_digit_capacity(num_leaves, false)
-        }
+        NewickStyle::ZeroIndexed => calculate_index_digit_capacity(num_leaves, true),
+        NewickStyle::OneIndexed => calculate_index_digit_capacity(num_leaves, false),
     };
 
     // -> Branch lengths

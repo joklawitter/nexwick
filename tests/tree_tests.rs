@@ -7,12 +7,11 @@ use nexwick::newick::NewickStyle;
 // ============= Tree Construction Tests =============
 #[test]
 fn test_building_tree() {
-    let mut tree:GenTree<LabelIndex> = GenTree::new(3);
+    let mut tree: GenTree<LabelIndex> = GenTree::new(3);
     let index_l1 = tree.add_leaf(Some(BranchLength::new(1.0)), 0);
     let index_l2 = tree.add_leaf(Some(BranchLength::new(1.0)), 1);
     let index_l3 = tree.add_leaf(Some(BranchLength::new(0.5)), 2);
-    let index_i1 = tree.add_internal_vertex((index_l1, index_l2),
-        Some(BranchLength::new(1.5)));
+    let index_i1 = tree.add_internal_vertex((index_l1, index_l2), Some(BranchLength::new(1.5)));
     let index_root = tree.add_root_without_branch((index_l3, index_i1));
 
     // Counts
@@ -38,7 +37,6 @@ fn test_building_tree() {
     assert_eq!(inti.index(), index_i1);
     assert_eq!(inti.branch_length().unwrap(), BranchLength::new(1.5));
 }
-
 
 // ============= Tree Methods Tests =============
 /// Builds an ultrametric test tree: ((A:1.0, B:1.0):1.0, C:2.0)
@@ -66,8 +64,8 @@ fn test_is_ultrametric() {
 fn test_is_ultrametric_false() {
     // Non-ultrametric: ((A:1.0, B:2.0):1.0, C:2.0)
     let mut tree: GenTree<LabelIndex> = GenTree::new(3);
-    tree.add_leaf(Some(BranchLength::new(1.0)), 0);  // A - path = 2.0
-    tree.add_leaf(Some(BranchLength::new(2.0)), 1);  // B - path = 3.0 (different!)
+    tree.add_leaf(Some(BranchLength::new(1.0)), 0); // A - path = 2.0
+    tree.add_leaf(Some(BranchLength::new(2.0)), 1); // B - path = 3.0 (different!)
     tree.add_leaf(Some(BranchLength::new(2.0)), 2);
     tree.add_internal_vertex((0, 1), Some(BranchLength::new(1.0)));
     tree.add_root_without_branch((3, 2));
@@ -84,7 +82,7 @@ fn test_height() {
 #[test]
 fn test_height_of() {
     let (tree, _) = make_test_tree();
-    let internal = &tree[3];  // internal node
+    let internal = &tree[3]; // internal node
     assert!((tree.height_of(internal) - 1.0).abs() < 1e-10);
 }
 
@@ -127,7 +125,7 @@ fn test_vertices_have_branch_lengths() {
 fn test_vertices_have_branch_lengths_false() {
     let mut tree: GenTree<LabelIndex> = GenTree::new(2);
     tree.add_leaf(Some(BranchLength::new(1.0)), 0);
-    tree.add_leaf(None, 1);  // No branch length
+    tree.add_leaf(None, 1); // No branch length
     tree.add_root_without_branch((0, 1));
 
     assert!(!tree.vertices_have_branch_lengths());
@@ -149,7 +147,7 @@ fn test_num_leaves_mismatch() {
 
     assert_eq!(tree.num_leaves_init(), 5);
     assert_eq!(tree.num_leaves(), 2);
-    assert!(tree.is_valid());  // Should still be valid
+    assert!(tree.is_valid()); // Should still be valid
 }
 
 // ============= Tree Consistency Tests =============
@@ -167,7 +165,6 @@ fn test_get_vertex_out_of_bounds() {
     let _ = &tree[55];
 }
 
-
 // ============= Iterator Tests =============
 #[test]
 fn test_post_order_iter_visits_children_before_parents() {
@@ -179,9 +176,7 @@ fn test_post_order_iter_visits_children_before_parents() {
     let internal = tree.add_internal_vertex((a, b), Some(BranchLength::new(0.5)));
     let root = tree.add_root_without_branch((internal, c));
 
-    let visited: Vec<_> = tree.post_order_iter()
-        .map(|v| v.index())
-        .collect();
+    let visited: Vec<_> = tree.post_order_iter().map(|v| v.index()).collect();
 
     // In post-order: leaves first, then internal, then root
     assert_eq!(visited.len(), 5);
@@ -212,9 +207,7 @@ fn test_pre_order_iter_visits_parents_before_children() {
     let internal = tree.add_internal_vertex((a, b), Some(BranchLength::new(0.5)));
     let root = tree.add_root_without_branch((internal, c));
 
-    let visited: Vec<_> = tree.pre_order_iter()
-        .map(|v| v.index())
-        .collect();
+    let visited: Vec<_> = tree.pre_order_iter().map(|v| v.index()).collect();
 
     // In pre-order: root first, then children
     assert_eq!(visited.len(), 5);
@@ -245,7 +238,6 @@ fn test_iter_on_empty_tree() {
     assert_eq!(post_count, 0);
     assert_eq!(pre_count, 0);
 }
-
 
 // ============= To Newick Tests =============
 #[test]

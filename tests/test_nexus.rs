@@ -1,11 +1,13 @@
-use nexwick::parse_nexus_file;
 use nexwick::newick::NewickStyle;
 use nexwick::nexus::{Burnin, NexusParserBuilder};
+use nexwick::parse_nexus_file;
 use std::path::Path;
 
 #[test]
 fn test_single_tree() {
-    let path = Path::new("tests").join("fixtures").join("nexus_t1_n10.trees");
+    let path = Path::new("tests")
+        .join("fixtures")
+        .join("nexus_t1_n10.trees");
     let result = parse_nexus_file(path);
     if let Err(e) = &result {
         eprintln!("Error parsing single tree: {:?}", e);
@@ -23,7 +25,9 @@ fn test_single_tree() {
 
 #[test]
 fn test_multiple_trees_with_translate() {
-    let path = Path::new("tests").join("fixtures").join("nexus_t11_n20_translate.trees");
+    let path = Path::new("tests")
+        .join("fixtures")
+        .join("nexus_t11_n20_translate.trees");
     let result = parse_nexus_file(path);
     if let Err(e) = &result {
         eprintln!("Error parsing multiple trees: {:?}", e);
@@ -42,7 +46,9 @@ fn test_multiple_trees_with_translate() {
 
 #[test]
 fn test_comments_and_unknown_blocks() {
-    let path = Path::new("tests").join("fixtures").join("nexus_t3_n10_comments.trees");
+    let path = Path::new("tests")
+        .join("fixtures")
+        .join("nexus_t3_n10_comments.trees");
     let result = parse_nexus_file(path);
     if let Err(e) = &result {
         eprintln!("Error parsing trees with lots of comments: {:?}", e);
@@ -61,9 +67,12 @@ fn test_comments_and_unknown_blocks() {
 
 #[test]
 fn test_skip_first() {
-    let path = Path::new("tests").join("fixtures").join("nexus_t11_n20_translate.trees");
+    let path = Path::new("tests")
+        .join("fixtures")
+        .join("nexus_t11_n20_translate.trees");
 
-    let mut parser = NexusParserBuilder::for_file(path).unwrap()
+    let mut parser = NexusParserBuilder::for_file(path)
+        .unwrap()
         .with_skip_first()
         .eager()
         .build()
@@ -94,9 +103,12 @@ fn test_skip_first() {
 
 #[test]
 fn test_burnin_count() {
-    let path = Path::new("tests").join("fixtures").join("nexus_t11_n20_translate.trees");
+    let path = Path::new("tests")
+        .join("fixtures")
+        .join("nexus_t11_n20_translate.trees");
 
-    let parser = NexusParserBuilder::for_file(path).unwrap()
+    let parser = NexusParserBuilder::for_file(path)
+        .unwrap()
         .with_burnin(Burnin::Count(5))
         .eager()
         .build()
@@ -118,24 +130,30 @@ fn test_burnin_count() {
 
 #[test]
 fn test_burnin_percentage() {
-    let path = Path::new("tests").join("fixtures").join("nexus_t11_n20_translate.trees");
+    let path = Path::new("tests")
+        .join("fixtures")
+        .join("nexus_t11_n20_translate.trees");
 
     // 25% of 11 trees = 2.75 -> floor to 2
-    let parser = NexusParserBuilder::for_file(path).unwrap()
+    let parser = NexusParserBuilder::for_file(path)
+        .unwrap()
         .with_burnin(Burnin::Percentage(0.25))
         .eager()
         .build()
         .unwrap();
 
-    assert_eq!(parser.num_trees(), 9);  // 11 - 2 = 9
+    assert_eq!(parser.num_trees(), 9); // 11 - 2 = 9
     assert_eq!(parser.num_total_trees(), 11);
 }
 
 #[test]
 fn test_skip_first_and_burnin() {
-    let path = Path::new("tests").join("fixtures").join("nexus_t11_n20_translate.trees");
+    let path = Path::new("tests")
+        .join("fixtures")
+        .join("nexus_t11_n20_translate.trees");
 
-    let parser = NexusParserBuilder::for_file(path).unwrap()
+    let parser = NexusParserBuilder::for_file(path)
+        .unwrap()
         .with_skip_first()
         .with_burnin(Burnin::Count(2))
         .eager()
@@ -149,9 +167,12 @@ fn test_skip_first_and_burnin() {
 
 #[test]
 fn test_lazy_mode() {
-    let path = Path::new("tests").join("fixtures").join("nexus_t11_n20_translate.trees");
+    let path = Path::new("tests")
+        .join("fixtures")
+        .join("nexus_t11_n20_translate.trees");
 
-    let mut parser = NexusParserBuilder::for_file(path).unwrap()
+    let mut parser = NexusParserBuilder::for_file(path)
+        .unwrap()
         .lazy()
         .build()
         .unwrap();
@@ -170,15 +191,18 @@ fn test_lazy_mode() {
 
 #[test]
 fn test_lazy_mode_with_burnin() {
-    let path = Path::new("tests").join("fixtures").join("nexus_t11_n20_translate.trees");
+    let path = Path::new("tests")
+        .join("fixtures")
+        .join("nexus_t11_n20_translate.trees");
 
-    let mut parser = NexusParserBuilder::for_file(path).unwrap()
+    let mut parser = NexusParserBuilder::for_file(path)
+        .unwrap()
         .lazy()
         .with_burnin(Burnin::Count(3))
         .build()
         .unwrap();
 
-    assert_eq!(parser.num_trees(), 8);  // 11 - 3 = 8
+    assert_eq!(parser.num_trees(), 8); // 11 - 3 = 8
 
     let mut count = 0;
     while let Some(tree) = parser.next_tree().unwrap() {
@@ -191,9 +215,12 @@ fn test_lazy_mode_with_burnin() {
 
 #[test]
 fn test_lazy_mode_reset() {
-    let path = Path::new("tests").join("fixtures").join("nexus_t3_n10_comments.trees");
+    let path = Path::new("tests")
+        .join("fixtures")
+        .join("nexus_t3_n10_comments.trees");
 
-    let mut parser = NexusParserBuilder::for_file(path).unwrap()
+    let mut parser = NexusParserBuilder::for_file(path)
+        .unwrap()
         .lazy()
         .build()
         .unwrap();
@@ -208,15 +235,20 @@ fn test_lazy_mode_reset() {
     assert_eq!(tree1_again.num_leaves(), 10);
 
     // Trees should be equivalent (same structure)
-    assert_eq!(tree1.to_newick(&NewickStyle::ZeroIndexed, None),
-        tree1_again.to_newick(&NewickStyle::ZeroIndexed, None));
+    assert_eq!(
+        tree1.to_newick(&NewickStyle::ZeroIndexed, None),
+        tree1_again.to_newick(&NewickStyle::ZeroIndexed, None)
+    );
 }
 
 #[test]
 fn test_lazy_mode_reset_with_burnin() {
-    let path = Path::new("tests").join("fixtures").join("nexus_t11_n20_translate.trees");
+    let path = Path::new("tests")
+        .join("fixtures")
+        .join("nexus_t11_n20_translate.trees");
 
-    let mut parser = NexusParserBuilder::for_file(path).unwrap()
+    let mut parser = NexusParserBuilder::for_file(path)
+        .unwrap()
         .lazy()
         .with_skip_first()
         .with_burnin(Burnin::Count(2))
@@ -238,6 +270,8 @@ fn test_lazy_mode_reset_with_burnin() {
     let first_tree_again = parser.next_tree().unwrap().unwrap();
 
     // Should get the same first tree again
-    assert_eq!(first_tree.to_newick(&NewickStyle::ZeroIndexed, None),
-        first_tree_again.to_newick(&NewickStyle::ZeroIndexed, None));
+    assert_eq!(
+        first_tree.to_newick(&NewickStyle::ZeroIndexed, None),
+        first_tree_again.to_newick(&NewickStyle::ZeroIndexed, None)
+    );
 }

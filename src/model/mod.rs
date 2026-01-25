@@ -31,29 +31,29 @@
 //!
 //! See the [tree_builder] module docs for details on this flow.
 
-pub mod tree;
-pub mod vertex;
-pub mod leaf_label_map;
-pub mod tree_builder;
 pub mod compact_tree_builder;
-pub mod simple_tree_builder;
 pub mod label_resolver;
 pub mod label_storage;
+pub mod leaf_label_map;
+pub mod simple_tree_builder;
+pub mod tree;
+pub mod tree_builder;
+pub mod vertex;
 
 // Tree (generic)
-pub use tree_builder::TreeBuilder;
 pub use tree::GenTree;
 pub use tree::VertexIndex;
+pub use tree_builder::TreeBuilder;
 pub use vertex::Vertex;
 // Compact tree
 pub use compact_tree_builder::CompactTreeBuilder;
-pub use tree::CompactTree;
-pub use leaf_label_map::LeafLabelMap;
 pub use leaf_label_map::LabelIndex;
+pub use leaf_label_map::LeafLabelMap;
+pub use tree::CompactTree;
 // Simple Tree
+pub use simple_tree_builder::SimpleLabelStorage;
 pub use simple_tree_builder::SimpleTreeBuilder;
 pub use tree::SimpleTree;
-pub use simple_tree_builder::SimpleLabelStorage;
 // Label handling
-pub use label_storage::LabelStorage;
 pub use label_resolver::LabelResolver;
+pub use label_storage::LabelStorage;

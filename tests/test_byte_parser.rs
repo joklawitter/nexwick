@@ -25,8 +25,11 @@ fn test_skip_comment() {
 
 #[test]
 fn test_skip_comment_and_whitespace() {
-    let mut parser = ByteParser::from_str("[Go] \n[Keep going]   \t ['...']\n[One more to go]  END!");
-    parser.skip_comment_and_whitespace().expect("Failed to skip comments.");
+    let mut parser =
+        ByteParser::from_str("[Go] \n[Keep going]   \t ['...']\n[One more to go]  END!");
+    parser
+        .skip_comment_and_whitespace()
+        .expect("Failed to skip comments.");
     assert_eq!(parser.next(), Some(b'E'));
 }
 

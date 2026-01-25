@@ -1,11 +1,9 @@
 //! Provides [TreeBuilder] implementation structs for [CompactTree].
 
-
 use crate::model::label_storage::LabelStorage;
 use crate::model::tree_builder::TreeBuilder;
 use crate::model::vertex::BranchLength;
 use crate::model::{CompactTree, LabelIndex, LeafLabelMap, VertexIndex};
-
 
 /// Builder that constructs [CompactTree] instances.
 ///
@@ -35,9 +33,7 @@ pub struct CompactTreeBuilder {
 impl CompactTreeBuilder {
     /// Creates a new builder in the empty state.
     pub fn new() -> Self {
-        Self {
-            current_tree: None,
-        }
+        Self { current_tree: None }
     }
 }
 
@@ -60,12 +56,20 @@ impl TreeBuilder for CompactTreeBuilder {
         tree.add_leaf(branch_len.map(BranchLength::new), label)
     }
 
-    fn add_internal(&mut self, children: (Self::VertexIdx, Self::VertexIdx), branch_len: Option<f64>) -> Self::VertexIdx {
+    fn add_internal(
+        &mut self,
+        children: (Self::VertexIdx, Self::VertexIdx),
+        branch_len: Option<f64>,
+    ) -> Self::VertexIdx {
         let tree = self.current_tree.as_mut().expect("init not called");
         tree.add_internal_vertex(children, branch_len.map(BranchLength::new))
     }
 
-    fn add_root(&mut self, children: (Self::VertexIdx, Self::VertexIdx), branch_len: Option<f64>) -> Self::VertexIdx {
+    fn add_root(
+        &mut self,
+        children: (Self::VertexIdx, Self::VertexIdx),
+        branch_len: Option<f64>,
+    ) -> Self::VertexIdx {
         let tree = self.current_tree.as_mut().expect("init not called");
         tree.add_root(children, branch_len.map(BranchLength::new))
     }
@@ -77,8 +81,6 @@ impl TreeBuilder for CompactTreeBuilder {
     }
 
     fn finish_tree(&mut self) -> Option<Self::Tree> {
-         self.current_tree.take()
+        self.current_tree.take()
     }
 }
-
-

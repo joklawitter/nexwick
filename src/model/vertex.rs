@@ -4,8 +4,8 @@
 //! `Internal`, and `Leaf`, and uses [BranchLength] structure to store
 //! branch/edge lengths.
 
-use std::fmt;
 use crate::model::tree::VertexIndex;
+use std::fmt;
 use std::ops::Deref;
 
 /// During construction, Internal and Leaf vertex might not have parent set yet.
@@ -71,7 +71,11 @@ impl<L> Vertex<L> {
     /// * `index` - The unique index of this vertex in the tree (arena)
     /// * `children` - Tuple of child indices
     /// * `branch_length` - Optional length of incoming edge (for special cases)
-    pub fn new_root(index: VertexIndex, children: (VertexIndex, VertexIndex), branch_length: Option<BranchLength>) -> Self {
+    pub fn new_root(
+        index: VertexIndex,
+        children: (VertexIndex, VertexIndex),
+        branch_length: Option<BranchLength>,
+    ) -> Self {
         Vertex::Root {
             index,
             children,
@@ -84,7 +88,10 @@ impl<L> Vertex<L> {
     /// # Arguments
     /// * `index` - The unique index of this vertex in the tree (arena)
     /// * `children` - Tuple of child indices
-    pub fn new_root_without_branch(index: VertexIndex, children: (VertexIndex, VertexIndex)) -> Self {
+    pub fn new_root_without_branch(
+        index: VertexIndex,
+        children: (VertexIndex, VertexIndex),
+    ) -> Self {
         Vertex::Root {
             index,
             children,
@@ -98,7 +105,11 @@ impl<L> Vertex<L> {
     /// * `index` - The unique index of this vertex in the tree (arena)
     /// * `children` - Tuple of child indices
     /// * `branch_length` - Distance to parent node (non-negative)
-    pub fn new_internal(index: VertexIndex, children: (VertexIndex, VertexIndex), branch_length: Option<BranchLength>) -> Self {
+    pub fn new_internal(
+        index: VertexIndex,
+        children: (VertexIndex, VertexIndex),
+        branch_length: Option<BranchLength>,
+    ) -> Self {
         Vertex::Internal {
             index,
             parent: NO_PARENT_SET,
@@ -223,21 +234,35 @@ impl<L> Vertex<L> {
 impl<L: fmt::Display> fmt::Display for Vertex<L> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            Vertex::Root { index, children, branch_length } => {
+            Vertex::Root {
+                index,
+                children,
+                branch_length,
+            } => {
                 write!(
                     f,
                     "Root(idx: {}, children: [{}, {}], len: {:?})",
                     index, children.0, children.1, branch_length
                 )
             }
-            Vertex::Internal { index, parent, children, branch_length } => {
+            Vertex::Internal {
+                index,
+                parent,
+                children,
+                branch_length,
+            } => {
                 write!(
                     f,
                     "Internal(idx: {}, parent: {}, children: [{}, {}], len: {:?})",
                     index, parent, children.0, children.1, branch_length
                 )
             }
-            Vertex::Leaf { index, label, parent, branch_length } => {
+            Vertex::Leaf {
+                index,
+                label,
+                parent,
+                branch_length,
+            } => {
                 write!(
                     f,
                     "Leaf(idx: {}, label: {}, parent: {}, len: {:?})",
@@ -267,8 +292,16 @@ impl BranchLength {
     /// # Panics
     /// Panics if `length` is negative or not finite.
     pub fn new(length: f64) -> Self {
-        assert!(length >= 0.0, "Branch length must be non-negative, got {}", length);
-        assert!(length.is_finite(), "Branch length must be finite, got {}", length);
+        assert!(
+            length >= 0.0,
+            "Branch length must be non-negative, got {}",
+            length
+        );
+        assert!(
+            length.is_finite(),
+            "Branch length must be finite, got {}",
+            length
+        );
         BranchLength(length)
     }
 }

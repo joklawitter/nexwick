@@ -4,13 +4,13 @@
 //! to parse files or single strings, as well as lazy parsing via a
 //! [NewickIterator].
 
-use crate::newick::defs::{DEFAULT_NUM_LEAVES_GUESS, NEWICK_LABEL_DELIMITERS};
+use crate::model::simple_tree_builder::{SimpleLabelStorage, SimpleTreeBuilder};
 use crate::model::tree_builder::TreeBuilder;
+use crate::model::{CompactTreeBuilder, LabelResolver, LeafLabelMap};
+use crate::newick::defs::{DEFAULT_NUM_LEAVES_GUESS, NEWICK_LABEL_DELIMITERS};
 use crate::parser::byte_parser::ByteParser;
 use crate::parser::byte_source::ByteSource;
 use crate::parser::parsing_error::ParsingError;
-use crate::model::{CompactTreeBuilder, LeafLabelMap, LabelResolver};
-use crate::model::simple_tree_builder::{SimpleTreeBuilder, SimpleLabelStorage};
 
 // =#========================================================================#=
 // NEWICK PARSER
@@ -211,8 +211,10 @@ impl<T: TreeBuilder> NewickParser<T> {
     /// # Returns
     /// * `Ok(Vec<T::Tree>)` - All parsed trees
     /// * `Err(ParsingError)` - If any tree fails to parse
-    pub fn parse_all<B: ByteSource>(&mut self, mut byte_parser: ByteParser<B>)
-        -> Result<Vec<T::Tree>, ParsingError> {
+    pub fn parse_all<B: ByteSource>(
+        &mut self,
+        mut byte_parser: ByteParser<B>,
+    ) -> Result<Vec<T::Tree>, ParsingError> {
         let mut trees = Vec::new();
         loop {
             byte_parser.skip_comment_and_whitespace()?;
@@ -233,7 +235,10 @@ impl<T: TreeBuilder> NewickParser<T> {
     /// * `Ok(T::Tree)` - The parsed phylogenetic tree
     /// * `Err(ParsingError)` - If the Newick format is invalid
     ///
-    pub fn parse_str<B: ByteSource>(&mut self, parser: &mut ByteParser<B>) -> Result<T::Tree, ParsingError> {
+    pub fn parse_str<B: ByteSource>(
+        &mut self,
+        parser: &mut ByteParser<B>,
+    ) -> Result<T::Tree, ParsingError> {
         self.parse_str_and_name(parser, None)
     }
 
@@ -248,11 +253,15 @@ impl<T: TreeBuilder> NewickParser<T> {
     /// * `Ok(T::Tree)` - The parsed phylogenetic tree
     /// * `Err(ParsingError)` - If the Newick format is invalid
     ///
-    pub(crate) fn parse_str_and_name<B: ByteSource>(&mut self, parser: &mut ByteParser<B>, tree_name: Option<String>) -> Result<T::Tree, ParsingError> {
+    pub(crate) fn parse_str_and_name<B: ByteSource>(
+        &mut self,
+        parser: &mut ByteParser<B>,
+        tree_name: Option<String>,
+    ) -> Result<T::Tree, ParsingError> {
         self.tree_builder.init_next(self.num_leaves);
 
         if let Some(name) = tree_name {
-        self.tree_builder.set_name(name);
+            self.tree_builder.set_name(name);
         }
 
         // If number of leaves not know yet, reset it to 0,
@@ -281,7 +290,10 @@ impl<T: TreeBuilder> NewickParser<T> {
     /// - Calls `parse_children` to parse the children pair
     ///
     /// Equivalent to `parse_internal_vertex` but takes care of root specialities.
-    fn parse_root<B: ByteSource>(&mut self, parser: &mut ByteParser<B>) -> Result<(), ParsingError> {
+    fn parse_root<B: ByteSource>(
+        &mut self,
+        parser: &mut ByteParser<B>,
+    ) -> Result<(), ParsingError> {
         parser.skip_comment_and_whitespace()?;
 
         let (left_index, right_index) = self.parse_children(parser)?;
@@ -294,11 +306,15 @@ impl<T: TreeBuilder> NewickParser<T> {
         if !parser.consume_if(b';') {
             return Err(ParsingError::invalid_newick_string(
                 parser,
-                format!("Expected ';' at end of tree but found {:?}", parser.peek().map(|b| b as char)),
+                format!(
+                    "Expected ';' at end of tree but found {:?}",
+                    parser.peek().map(|b| b as char)
+                ),
             ));
         }
 
-        self.tree_builder.add_root((left_index, right_index), branch_length);
+        self.tree_builder
+            .add_root((left_index, right_index), branch_length);
 
         Ok(())
     }
@@ -310,7 +326,10 @@ impl<T: TreeBuilder> NewickParser<T> {
     /// # Returns
     /// - vertex index of parsed internal vertex
     /// - [ParsingError] if something went wrong
-    fn parse_vertex<B: ByteSource>(&mut self, parser: &mut ByteParser<B>) -> Result<T::VertexIdx, ParsingError> {
+    fn parse_vertex<B: ByteSource>(
+        &mut self,
+        parser: &mut ByteParser<B>,
+    ) -> Result<T::VertexIdx, ParsingError> {
         parser.skip_comment_and_whitespace()?;
         if parser.peek_is(b'(') {
             self.parse_internal_vertex(parser)
@@ -326,11 +345,16 @@ impl<T: TreeBuilder> NewickParser<T> {
     /// # Returns
     /// - vertex index of parsed internal vertex
     /// - [ParsingError] if something went wrong
-    fn parse_internal_vertex<B: ByteSource>(&mut self, parser: &mut ByteParser<B>) -> Result<T::VertexIdx, ParsingError> {
+    fn parse_internal_vertex<B: ByteSource>(
+        &mut self,
+        parser: &mut ByteParser<B>,
+    ) -> Result<T::VertexIdx, ParsingError> {
         let (left_index, right_index) = self.parse_children(parser)?;
         // Annotation parser will be added here.
         let branch_length = self.parse_branch_length(parser)?;
-        let index = self.tree_builder.add_internal((left_index, right_index), branch_length);
+        let index = self
+            .tree_builder
+            .add_internal((left_index, right_index), branch_length);
         Ok(index)
     }
 
@@ -341,13 +365,19 @@ impl<T: TreeBuilder> NewickParser<T> {
     /// # Returns
     /// - vertex indices of left and right child vertices
     /// - [ParsingError] if something went wrong
-    fn parse_children<B: ByteSource>(&mut self, parser: &mut ByteParser<B>) -> Result<(T::VertexIdx, T::VertexIdx), ParsingError> {
+    fn parse_children<B: ByteSource>(
+        &mut self,
+        parser: &mut ByteParser<B>,
+    ) -> Result<(T::VertexIdx, T::VertexIdx), ParsingError> {
         // Parse: "(left"
         // Calling methods should have skipped comments and whitespace
         if !parser.consume_if(b'(') {
             return Err(ParsingError::invalid_newick_string(
                 parser,
-                format!("Expected '(' before children but found {:?}", parser.peek().map(|b| b as char)),
+                format!(
+                    "Expected '(' before children but found {:?}",
+                    parser.peek().map(|b| b as char)
+                ),
             ));
         }
         let left_index = self.parse_vertex(parser)?;
@@ -357,7 +387,10 @@ impl<T: TreeBuilder> NewickParser<T> {
         if !parser.consume_if(b',') {
             return Err(ParsingError::invalid_newick_string(
                 parser,
-                format!("Expected ',' between children but found {:?}", parser.peek().map(|b| b as char)),
+                format!(
+                    "Expected ',' between children but found {:?}",
+                    parser.peek().map(|b| b as char)
+                ),
             ));
         }
         let right_index = self.parse_vertex(parser)?;
@@ -367,7 +400,10 @@ impl<T: TreeBuilder> NewickParser<T> {
         if !parser.consume_if(b')') {
             return Err(ParsingError::invalid_newick_string(
                 parser,
-                format!("Expected ')' after children but found {:?}", parser.peek().map(|b| b as char)),
+                format!(
+                    "Expected ')' after children but found {:?}",
+                    parser.peek().map(|b| b as char)
+                ),
             ));
         }
 
@@ -383,9 +419,14 @@ impl<T: TreeBuilder> NewickParser<T> {
     /// - vertex index of parsed leaf
     /// - [ParsingError] if something went wrong,
     ///   e.g. if label couldn't be resolved
-    fn parse_leaf<B: ByteSource>(&mut self, parser: &mut ByteParser<B>) -> Result<T::VertexIdx, ParsingError> {
+    fn parse_leaf<B: ByteSource>(
+        &mut self,
+        parser: &mut ByteParser<B>,
+    ) -> Result<T::VertexIdx, ParsingError> {
         let label = parser.parse_label(NEWICK_LABEL_DELIMITERS)?;
-        let label_ref = self.resolver.resolve_label(&label)
+        let label_ref = self
+            .resolver
+            .resolve_label(&label)
             .map_err(|e| ParsingError::unresolved_label(parser, e.to_string()))?;
         // Annotation parser will be added here.
         let branch_length = self.parse_branch_length(parser)?;
@@ -404,7 +445,10 @@ impl<T: TreeBuilder> NewickParser<T> {
     /// -  `Ok(Some(branch_length))` if found a branch length and was able to parse it
     /// - `Ok(None)` if no branch length found
     /// - [ParsingError] if it couldn't parse branch length value
-    fn parse_branch_length<B: ByteSource>(&mut self, parser: &mut ByteParser<B>) -> Result<Option<f64>, ParsingError> {
+    fn parse_branch_length<B: ByteSource>(
+        &mut self,
+        parser: &mut ByteParser<B>,
+    ) -> Result<Option<f64>, ParsingError> {
         // Parse: Whitespace/Comments : Whitespace/Comments
         parser.skip_comment_and_whitespace()?;
         if !parser.consume_if(b':') {
@@ -425,8 +469,12 @@ impl<T: TreeBuilder> NewickParser<T> {
         }
 
         // Parse branch length substring
-        let value: f64 = branch_length_str.parse()
-            .map_err(|_| ParsingError::invalid_newick_string(parser, format!("Invalid branch length: {}", branch_length_str)))?;
+        let value: f64 = branch_length_str.parse().map_err(|_| {
+            ParsingError::invalid_newick_string(
+                parser,
+                format!("Invalid branch length: {}", branch_length_str),
+            )
+        })?;
         Ok(Some(value))
     }
 }
@@ -471,7 +519,9 @@ where
     type Item = Result<T::Tree, ParsingError>;
 
     fn next(&mut self) -> Option<Self::Item> {
-        if self.done { return None; }
+        if self.done {
+            return None;
+        }
 
         match self.parser.parse_str(&mut self.byte_parser) {
             Ok(tree) => {

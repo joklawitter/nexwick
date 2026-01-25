@@ -1,9 +1,11 @@
 //! NEXUS format file writer (for tree model [CompactTree] +[LeafLabelMap]).
 
-use crate::nexus::defs::{BLOCK_BEGIN, BLOCK_END, DIMENSIONS, NEXUS_HEADER, NTAX, TAXA, TAXLABELS, TRANSLATE, TREE, TREES};
-use crate::newick::writer::{estimate_newick_len, to_newick_with_capacity, NewickStyle};
-use crate::parser::utils::escape_label;
 use crate::model::{CompactTree, LeafLabelMap};
+use crate::newick::writer::{NewickStyle, estimate_newick_len, to_newick_with_capacity};
+use crate::nexus::defs::{
+    BLOCK_BEGIN, BLOCK_END, DIMENSIONS, NEXUS_HEADER, NTAX, TAXA, TAXLABELS, TRANSLATE, TREE, TREES,
+};
+use crate::parser::utils::escape_label;
 use std::fs::File;
 use std::io;
 use std::io::{BufWriter, Write};
@@ -61,7 +63,11 @@ impl NexusWriter {
     ///
     /// # Errors
     /// Returns an I/O error if writing fails
-    pub fn write_nexus(&mut self, trees: &Vec<CompactTree>, leaf_label_map: &LeafLabelMap) -> io::Result<()> {
+    pub fn write_nexus(
+        &mut self,
+        trees: &Vec<CompactTree>,
+        leaf_label_map: &LeafLabelMap,
+    ) -> io::Result<()> {
         self.header()?
             .taxa_block(leaf_label_map)?
             .trees_block(trees, leaf_label_map)?;
@@ -88,7 +94,8 @@ impl NexusWriter {
             .semicolon_ln()?;
 
         // "\tDimensions ntaxa=n;"
-        self.tab()?.write_all(DIMENSIONS)?
+        self.tab()?
+            .write_all(DIMENSIONS)?
             .space()?
             .write_all(NTAX)?
             .equals()?
@@ -96,29 +103,32 @@ impl NexusWriter {
             .semicolon_ln()?;
 
         // "\tTaxlabels [label ...];"
-        self.tab()?
-            .write_all(TAXLABELS)?;
+        self.tab()?.write_all(TAXLABELS)?;
         for label in map.labels() {
             let escaped_label = escape_label(label);
-            self.space()?
-                .write_all(escaped_label.as_bytes())?;
+            self.space()?.write_all(escaped_label.as_bytes())?;
         }
         self.newline()?;
 
         // "End;"
-        self.write_all(BLOCK_END)?
-            .newline()?;
+        self.write_all(BLOCK_END)?.newline()?;
 
         Ok(self)
     }
 
     /// Writes the TREES block with TRANSLATE command and tree list, returning itself for chaining.
-    fn trees_block(&mut self, trees: &Vec<CompactTree>, leaf_label_map: &LeafLabelMap) -> io::Result<&mut Self> {
+    fn trees_block(
+        &mut self,
+        trees: &Vec<CompactTree>,
+        leaf_label_map: &LeafLabelMap,
+    ) -> io::Result<&mut Self> {
         // - "Begin TREES;"
-        self.write_all(BLOCK_BEGIN)?.space()?.write_all(TREES)?.semicolon_ln()?;
+        self.write_all(BLOCK_BEGIN)?
+            .space()?
+            .write_all(TREES)?
+            .semicolon_ln()?;
 
-        self.translate_cmd(leaf_label_map)?
-            .trees_cmd_list(trees)?;
+        self.translate_cmd(leaf_label_map)?.trees_cmd_list(trees)?;
 
         Ok(self)
     }
@@ -126,9 +136,7 @@ impl NexusWriter {
     /// Writes the TRANSLATE command mapping indices to labels, returning itself for chaining.
     fn translate_cmd(&mut self, leaf_label_map: &LeafLabelMap) -> io::Result<&mut Self> {
         // - "TRANSLATE [<key, label], ...];
-        self.tab()?
-            .write_all(TRANSLATE)?
-            .newline()?;
+        self.tab()?.write_all(TRANSLATE)?.newline()?;
 
         let num_labels = leaf_label_map.num_labels();
         let mut i = 0;
@@ -139,7 +147,8 @@ impl NexusWriter {
             // "(id + 1) escaped_label,\n"
             let escaped_label = escape_label(label);
 
-            self.tab()?.tab()?
+            self.tab()?
+                .tab()?
                 .write_all((id + 1).to_string().as_bytes())?
                 .space()?
                 .write_all(escaped_label.as_bytes())?;
@@ -153,8 +162,7 @@ impl NexusWriter {
         self.semicolon()?.newline()?;
 
         // - "End;"
-        self.write_all(BLOCK_END)?
-            .newline()?;
+        self.write_all(BLOCK_END)?.newline()?;
 
         Ok(self)
     }
@@ -172,7 +180,9 @@ impl NexusWriter {
         // "TREE <name> = <Newick;>
         let mut i = 0;
         for tree in trees {
-            let name = tree.name().map(|s| s.to_string())
+            let name = tree
+                .name()
+                .map(|s| s.to_string())
                 .unwrap_or_else(|| format!("tree_{}", i));
 
             self.write_all(TREE)?
@@ -181,7 +191,10 @@ impl NexusWriter {
                 .space()?
                 .equals()?
                 .space()?
-                .write_all(to_newick_with_capacity(&NewickStyle::OneIndexed, tree, None, estimated_length).as_bytes())?;
+                .write_all(
+                    to_newick_with_capacity(&NewickStyle::OneIndexed, tree, None, estimated_length)
+                        .as_bytes(),
+                )?;
 
             i += 1;
         }
@@ -242,5 +255,3 @@ impl NexusWriter {
         Ok(self)
     }
 }
-
-

@@ -149,7 +149,6 @@ impl LeafLabelMap {
     pub fn map(&self) -> &HashMap<String, usize> {
         &self.map
     }
-
 }
 
 impl LabelStorage for LeafLabelMap {
@@ -178,7 +177,12 @@ impl LabelStorage for LeafLabelMap {
 
 impl fmt::Display for LeafLabelMap {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        writeln!(f, "LeafLabelMap ({}/{} labels):", self.labels.len(), self.num_leaves)?;
+        writeln!(
+            f,
+            "LeafLabelMap ({}/{} labels):",
+            self.labels.len(),
+            self.num_leaves
+        )?;
         for (idx, label) in self.labels.iter().enumerate() {
             writeln!(f, "  [{}] {}", idx, label)?;
         }

@@ -7,7 +7,7 @@
 use crate::model::LabelStorage;
 use std::collections::HashMap;
 use std::fmt;
-use std::fmt::{Display, Debug};
+use std::fmt::{Debug, Display};
 
 // =#========================================================================#=
 // LABEL RESOLVER
@@ -23,7 +23,6 @@ use std::fmt::{Display, Debug};
 /// which can then be stored in tree leaves.
 #[derive(Debug)]
 pub enum LabelResolver<S: LabelStorage> {
-
     /// Resolves and stores labels verbatim.
     ///
     /// Use for:
@@ -88,14 +87,19 @@ impl<S: LabelStorage> LabelResolver<S> {
     ///
     /// # Panics
     /// Panics if any label in `translation` is not found in `storage`.
-    pub(crate) fn new_nexus_labels_resolver(translation: HashMap<String, String>, storage: S) -> Self {
+    pub(crate) fn new_nexus_labels_resolver(
+        translation: HashMap<String, String>,
+        storage: S,
+    ) -> Self {
         // Instead of going from key -> label and then from label -> LabelRef,
         // we create a direct mapping key -> LabelRef
         let mut index_map = HashMap::with_capacity(translation.len());
         for (key, actual_label) in &translation {
-            let label_index = storage.check_and_ref(&actual_label)
-                .expect(&format!("Label {} provided by translation to resolver\
-                 not present in provided label storage.", actual_label));
+            let label_index = storage.check_and_ref(&actual_label).expect(&format!(
+                "Label {} provided by translation to resolver\
+                 not present in provided label storage.",
+                actual_label
+            ));
             index_map.insert(key.clone(), label_index);
         }
 
@@ -116,7 +120,10 @@ impl<S: LabelStorage> LabelResolver<S> {
     /// - Any key is out of bounds (must be 1..=num_labels)
     /// - Any label is not found in `storage`
     /// - Keys are not consecutive/complete (missing indices)
-    pub(crate) fn new_nexus_integer_labels_resolver(translation: HashMap<String, String>, storage: S) -> Self {
+    pub(crate) fn new_nexus_integer_labels_resolver(
+        translation: HashMap<String, String>,
+        storage: S,
+    ) -> Self {
         let num_labels = storage.num_labels();
 
         // Validate all keys are valid integers and build index array;
@@ -126,19 +133,24 @@ impl<S: LabelStorage> LabelResolver<S> {
 
         for (key, actual_label) in &translation {
             // Parse key as integer
-            let nexus_index = key.parse::<usize>()
+            let nexus_index = key
+                .parse::<usize>()
                 .expect(&format!("TRANSLATE key '{}' is not a valid integer", key));
 
             // Validate bounds (1-based NEXUS indexing)
             if nexus_index == 0 || nexus_index > num_labels {
-                panic!("TRANSLATE index {} out of bounds (1-based indexing), valid range: 1-{})",
-                    nexus_index, num_labels);
+                panic!(
+                    "TRANSLATE index {} out of bounds (1-based indexing), valid range: 1-{})",
+                    nexus_index, num_labels
+                );
             }
 
             // Look up the label in the label storage
-            let label_ref = storage.check_and_ref(actual_label)
-                .expect(&format!("Label '{}' provided by translation to resolver\
-                 not present in provided label storage.", actual_label));
+            let label_ref = storage.check_and_ref(actual_label).expect(&format!(
+                "Label '{}' provided by translation to resolver\
+                 not present in provided label storage.",
+                actual_label
+            ));
 
             // Store in array (converting from 1-based to 0-based indexing)
             index_array[nexus_index - 1] = Some(label_ref);
@@ -148,11 +160,13 @@ impl<S: LabelStorage> LabelResolver<S> {
         let index_array: Vec<S::LabelRef> = index_array
             .into_iter()
             .enumerate()
-            .map(|(i, opt)|
-                opt.expect(&format!("Missing translation for index {}", i + 1)))
+            .map(|(i, opt)| opt.expect(&format!("Missing translation for index {}", i + 1)))
             .collect();
 
-        LabelResolver::NexusIntegerLabels { index_array, storage }
+        LabelResolver::NexusIntegerLabels {
+            index_array,
+            storage,
+        }
     }
 
     /// Resolves a parsed label string to its storage reference.
@@ -168,11 +182,12 @@ impl<S: LabelStorage> LabelResolver<S> {
     /// # Returns
     /// * `Ok(LabelRef)` - The resolved storage reference
     /// * `Err(LabelResolvingError)` - If the label cannot be resolved
-    pub(crate) fn resolve_label(&mut self, parsed_label: &str) -> Result<S::LabelRef, LabelResolvingError> {
+    pub(crate) fn resolve_label(
+        &mut self,
+        parsed_label: &str,
+    ) -> Result<S::LabelRef, LabelResolvingError> {
         match self {
-            LabelResolver::VerbatimLabels(storage) => {
-                Ok(storage.store_and_ref(parsed_label))
-            }
+            LabelResolver::VerbatimLabels(storage) => Ok(storage.store_and_ref(parsed_label)),
 
             LabelResolver::NexusLabels { index_map, storage } => {
                 // 1. Try if parsed label is key of translation map
@@ -183,11 +198,11 @@ impl<S: LabelStorage> LabelResolver<S> {
                 // 2. Try if parsed label is integer
                 if let Ok(nexus_index) = parsed_label.parse::<usize>() {
                     if nexus_index == 0 || nexus_index > storage.num_labels() {
-                        return Err(LabelResolvingError(
-                            format!("Nexus label index {nexus_index} out of\
+                        return Err(LabelResolvingError(format!(
+                            "Nexus label index {nexus_index} out of\
                             bounds (1-based indexing, max {})",
-                                storage.num_labels()),
-                        ));
+                            storage.num_labels()
+                        )));
                     }
                     return Ok(storage.index_to_ref(nexus_index - 1));
                 }
@@ -197,8 +212,9 @@ impl<S: LabelStorage> LabelResolver<S> {
                     return Ok(verbatim_try);
                 }
 
-
-                Err(LabelResolvingError(format!("NexusResolver could not resolve {parsed_label}")))
+                Err(LabelResolvingError(format!(
+                    "NexusResolver could not resolve {parsed_label}"
+                )))
             }
 
             LabelResolver::NexusIntegerLabels { index_array, .. } => {
@@ -206,18 +222,20 @@ impl<S: LabelStorage> LabelResolver<S> {
                 if let Ok(nexus_index) = parsed_label.parse::<usize>() {
                     // Validate bounds (1-based NEXUS indexing)
                     if nexus_index == 0 || nexus_index > index_array.len() {
-                        return Err(LabelResolvingError(
-                            format!("Index {} out of bounds (1-based indexing, valid range: 1-{})",
-                                nexus_index, index_array.len()),
-                        ));
+                        return Err(LabelResolvingError(format!(
+                            "Index {} out of bounds (1-based indexing, valid range: 1-{})",
+                            nexus_index,
+                            index_array.len()
+                        )));
                     }
                     // Convert 1-based to 0-based and lookup in array
                     return Ok(index_array[nexus_index - 1].clone());
                 }
 
-                Err(LabelResolvingError(
-                    format!("NexusIntegerLabels resolver requires integer labels, got '{}'", parsed_label),
-                ))
+                Err(LabelResolvingError(format!(
+                    "NexusIntegerLabels resolver requires integer labels, got '{}'",
+                    parsed_label
+                )))
             }
         }
     }
@@ -268,7 +286,6 @@ impl<S: LabelStorage> Display for LabelResolver<S> {
         }
     }
 }
-
 
 // =#========================================================================#=
 // LABEL RESOLVING ERROR

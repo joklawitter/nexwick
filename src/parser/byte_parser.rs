@@ -155,9 +155,9 @@ impl<S: ByteSource> ByteParser<S> {
     /// # Returns
     /// `true` if the current byte matches `ch` in any case, `false` otherwise
     pub fn peek_is(&self, ch: u8) -> bool {
-        self.peek() == Some(ch) ||
-            self.peek() == Some(ch.to_ascii_lowercase()) ||
-            self.peek() == Some(ch.to_ascii_uppercase())
+        self.peek() == Some(ch)
+            || self.peek() == Some(ch.to_ascii_lowercase())
+            || self.peek() == Some(ch.to_ascii_uppercase())
     }
 
     /// Checks if the following bytes match the given word/token (case-insensitive).
@@ -195,7 +195,8 @@ impl<S: ByteSource> ByteParser<S> {
         for (context_byte, seq_byte) in context.iter().zip(sequence.iter()) {
             if *context_byte != *seq_byte
                 && *context_byte != seq_byte.to_ascii_lowercase()
-                && *context_byte != seq_byte.to_ascii_uppercase() {
+                && *context_byte != seq_byte.to_ascii_uppercase()
+            {
                 return false;
             }
         }

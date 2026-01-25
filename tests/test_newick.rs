@@ -1,5 +1,5 @@
+use nexwick::newick::{NewickParser, parse_file};
 use nexwick::parser::byte_parser::ByteParser;
-use nexwick::newick::{parse_file, NewickParser};
 use std::path::Path;
 
 // --- TESTS NEWICK STRING PARSING ---
@@ -7,7 +7,7 @@ use std::path::Path;
 fn test_basic_compact_tree() {
     let newick = "((A:1.0,B:2.0):3.0,C:4.0):0.5;";
     let mut parser = ByteParser::from_str(newick);
-    let mut newick_parser =NewickParser::new_compact_defaults().with_num_leaves(3);
+    let mut newick_parser = NewickParser::new_compact_defaults().with_num_leaves(3);
     let tree = newick_parser.parse_str(&mut parser).unwrap();
     let leaf_map = newick_parser.into_label_storage();
 
@@ -66,14 +66,16 @@ fn test_basic_simple_tree() {
     assert_eq!(tree.vertex(a_idx).label().unwrap(), "A");
     assert_eq!(tree.vertex(b_idx).label().unwrap(), "B");
     assert_eq!(tree.vertex(right).label().unwrap(), "C");
-
 }
 
 #[test]
 fn test_basic_tree_without_root_branch() {
     let newick = "((A:1.0,B:2.0):3.0,C:4.0);";
     let mut parser = ByteParser::from_str(newick);
-    let tree =NewickParser::new_compact_defaults().with_num_leaves(3).parse_str(&mut parser).unwrap();
+    let tree = NewickParser::new_compact_defaults()
+        .with_num_leaves(3)
+        .parse_str(&mut parser)
+        .unwrap();
 
     // Test counts
     assert_eq!(tree.num_leaves(), 3);
@@ -85,7 +87,7 @@ fn test_basic_tree_without_root_branch() {
 fn test_tree_with_quoted_labels() {
     let newick = "(('Taxon one':1.5,'Second''s taxon':2.5):3.0,'3rd Taxon':4.0):0.0;";
     let mut parser = ByteParser::from_str(newick);
-    let mut newick_parser =NewickParser::new_compact_defaults().with_num_leaves(3);
+    let mut newick_parser = NewickParser::new_compact_defaults().with_num_leaves(3);
     let tree = newick_parser.parse_str(&mut parser).unwrap();
     let leaf_map = newick_parser.into_label_storage();
 
@@ -99,7 +101,7 @@ fn test_tree_with_quoted_labels() {
 fn test_tree_with_scientific_notation() {
     let newick = "((A:1e-5,B:2.5E+3):1.0e2,C:3.14E-10):0.0;";
     let mut parser = ByteParser::from_str(newick);
-    let mut newick_parser =NewickParser::new_compact_defaults().with_num_leaves(3);
+    let mut newick_parser = NewickParser::new_compact_defaults().with_num_leaves(3);
     let tree = newick_parser.parse_str(&mut parser).unwrap();
     let leaf_map = newick_parser.into_label_storage();
 
@@ -113,7 +115,9 @@ fn test_tree_with_scientific_notation() {
 fn test_optional_branch_length() {
     let newick = "((A:1.0,B),C:4.0);";
     let mut parser = ByteParser::from_str(newick);
-    let tree =NewickParser::new_compact_defaults().with_num_leaves(3).parse_str(&mut parser);
+    let tree = NewickParser::new_compact_defaults()
+        .with_num_leaves(3)
+        .parse_str(&mut parser);
     assert!(tree.is_ok());
 }
 
@@ -121,10 +125,15 @@ fn test_optional_branch_length() {
 fn test_newick_with_comment_1() {
     let newick_with_comment = "[A tree of] (([Shags!]A[Great Commentoran]:0.33,B[Pied Commentoran]:0.33):1.87,C:[King Commentoran]2.2):0.0;";
     let mut parser = ByteParser::from_str(newick_with_comment);
-    let tree =NewickParser::new_compact_defaults().with_num_leaves(3).parse_str(&mut parser);
+    let tree = NewickParser::new_compact_defaults()
+        .with_num_leaves(3)
+        .parse_str(&mut parser);
 
     if tree.is_err() {
-        eprintln!("Error parsing tree with comments: {:?}", tree.as_ref().err());
+        eprintln!(
+            "Error parsing tree with comments: {:?}",
+            tree.as_ref().err()
+        );
     }
 
     assert!(tree.is_ok());
@@ -134,10 +143,15 @@ fn test_newick_with_comment_1() {
 fn test_newick_with_comment_2() {
     let newick_with_comment = "[A tree of] ([Shags!] C:[King Commentoran] 2.2, (A[Great Commentoran]:0.33, B[Pied Commentoran]:0.33):1.87):0.0[The end.];";
     let mut parser = ByteParser::from_str(newick_with_comment);
-    let tree =NewickParser::new_compact_defaults().with_num_leaves(3).parse_str(&mut parser);
+    let tree = NewickParser::new_compact_defaults()
+        .with_num_leaves(3)
+        .parse_str(&mut parser);
 
     if tree.is_err() {
-        eprintln!("Error parsing tree with comments: {:?}", tree.as_ref().err());
+        eprintln!(
+            "Error parsing tree with comments: {:?}",
+            tree.as_ref().err()
+        );
     }
 
     assert!(tree.is_ok());
@@ -149,7 +163,9 @@ fn test_newick_with_comment_2() {
 fn test_missing_semicolon() {
     let newick = "((A:1.0,B:2.0):3.0,C:4.0):0.5";
     let mut parser = ByteParser::from_str(newick);
-    let tree =NewickParser::new_compact_defaults().with_num_leaves(3).parse_str(&mut parser);
+    let tree = NewickParser::new_compact_defaults()
+        .with_num_leaves(3)
+        .parse_str(&mut parser);
     assert!(tree.is_err());
 }
 
@@ -157,7 +173,9 @@ fn test_missing_semicolon() {
 fn test_missing_comma() {
     let newick = "((A:1.0 B:2.0):3.0,C:4.0):0.5;";
     let mut parser = ByteParser::from_str(newick);
-    let tree =NewickParser::new_compact_defaults().with_num_leaves(3).parse_str(&mut parser);
+    let tree = NewickParser::new_compact_defaults()
+        .with_num_leaves(3)
+        .parse_str(&mut parser);
     assert!(tree.is_err());
 }
 
@@ -165,7 +183,9 @@ fn test_missing_comma() {
 fn test_unmatched_parentheses() {
     let newick = "((A:1.0,B:2.0:3.0,C:4.0):0.5;";
     let mut parser = ByteParser::from_str(newick);
-    let tree =NewickParser::new_compact_defaults().with_num_leaves(3).parse_str(&mut parser);
+    let tree = NewickParser::new_compact_defaults()
+        .with_num_leaves(3)
+        .parse_str(&mut parser);
     assert!(tree.is_err());
 }
 
@@ -173,14 +193,18 @@ fn test_unmatched_parentheses() {
 fn test_invalid_branch_length() {
     let newick = "((A:1.0,B:abc):3.0,C:4.0):0.5;";
     let mut parser = ByteParser::from_str(newick);
-    let tree =NewickParser::new_compact_defaults().with_num_leaves(3).parse_str(&mut parser);
+    let tree = NewickParser::new_compact_defaults()
+        .with_num_leaves(3)
+        .parse_str(&mut parser);
     assert!(tree.is_err());
 }
 
 // --- TESTS PARSING WHOLE FILE ---
 #[test]
 fn test_parsing_newick_file() {
-    let path = Path::new("tests").join("fixtures").join("newick_t4_n10.nwk");
+    let path = Path::new("tests")
+        .join("fixtures")
+        .join("newick_t4_n10.nwk");
     let (trees, leaf_map) = parse_file(path).unwrap();
 
     assert_eq!(trees.len(), 3);

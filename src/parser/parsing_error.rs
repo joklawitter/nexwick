@@ -11,7 +11,6 @@ use std::fmt;
 /// Default length of context provided by error from parser
 const DEFAULT_CONTEXT_LENGTH: usize = 50;
 
-
 // =#========================================================================#=
 // PARSING ERROR TYPE
 // =#========================================================================€=
@@ -60,7 +59,6 @@ pub enum ParsingErrorType {
     InvalidTreeStructure,
 }
 
-
 // =#========================================================================#=
 // PARSING ERROR
 // =#========================================================================$=
@@ -84,7 +82,11 @@ impl ParsingError {
 
     /// Create a [ParsingError] without parser context (for builder errors)
     pub fn without_context(kind: ParsingErrorType) -> Self {
-        Self { kind, position: 0, context: String::new() }
+        Self {
+            kind,
+            position: 0,
+            context: String::new(),
+        }
     }
 
     /// Convenience constructor for [ParsingErrorType::UnexpectedEOF]
@@ -152,13 +154,24 @@ impl fmt::Display for ParsingError {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         // Main error message
         match &self.kind {
-            ParsingErrorType::MissingNexusHeader => write!(f, "File does not start with #NEXUS header")?,
-            ParsingErrorType::InvalidTaxaBlock(msg) => write!(f, "Invalid TAXA block format - {msg}")?,
-            ParsingErrorType::InvalidTreesBlock(msg) => write!(f, "Invalid TREES block format - {msg}")?,
-            ParsingErrorType::InvalidTranslateCommand => write!(f, "Invalid TRANSLATE command - likely inconsistent with TAXA block")?,
+            ParsingErrorType::MissingNexusHeader => {
+                write!(f, "File does not start with #NEXUS header")?
+            }
+            ParsingErrorType::InvalidTaxaBlock(msg) => {
+                write!(f, "Invalid TAXA block format - {msg}")?
+            }
+            ParsingErrorType::InvalidTreesBlock(msg) => {
+                write!(f, "Invalid TREES block format - {msg}")?
+            }
+            ParsingErrorType::InvalidTranslateCommand => write!(
+                f,
+                "Invalid TRANSLATE command - likely inconsistent with TAXA block"
+            )?,
             ParsingErrorType::UnclosedComment => write!(f, "Unclosed comment")?,
             ParsingErrorType::InvalidBlockName => write!(f, "Invalid block name")?,
-            ParsingErrorType::InvalidNewickString(msg) => write!(f, "Invalid newick string: {}", msg)?,
+            ParsingErrorType::InvalidNewickString(msg) => {
+                write!(f, "Invalid newick string: {}", msg)?
+            }
             ParsingErrorType::UnexpectedEOF => write!(f, "Unexpected end of file")?,
             ParsingErrorType::InvalidFormatting => write!(f, "Invalid formatting")?,
             ParsingErrorType::UnresolvedLabel(msg) => write!(f, "Could not resolve label - {msg}")?,
@@ -172,7 +185,12 @@ impl fmt::Display for ParsingError {
 
         // Additional context if available
         if !self.context.is_empty() {
-            write!(f, "\n  Context (next {} bytes): {}", self.context.len(), self.context)?;
+            write!(
+                f,
+                "\n  Context (next {} bytes): {}",
+                self.context.len(),
+                self.context
+            )?;
         }
 
         Ok(())
@@ -189,8 +207,8 @@ impl From<std::io::Error> for ParsingError {
     fn from(err: std::io::Error) -> Self {
         ParsingError {
             kind: ParsingErrorType::IoError(err.to_string()),
-            position: 0,  // No position for IO errors
-            context: String::new(),  // No parsing context
+            position: 0,            // No position for IO errors
+            context: String::new(), // No parsing context
         }
     }
 }

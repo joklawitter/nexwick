@@ -7,10 +7,10 @@
 //! * [SimpleTree] as realization with [String]
 //! * [VertexIndex] as type used to index vertices in tree
 
-use crate::newick;
-use crate::newick::NewickStyle;
 use crate::model::leaf_label_map::{LabelIndex, LeafLabelMap};
 use crate::model::vertex::{BranchLength, Vertex};
+use crate::newick;
+use crate::newick::NewickStyle;
 
 /// Float comparison tolerance
 const EPSILON: f64 = 1e-7;
@@ -72,7 +72,6 @@ pub type CompactTree = GenTree<LabelIndex>;
 /// Tree with embedded String labels.
 pub type SimpleTree = GenTree<String>;
 
-
 // ============================================================================
 // New, Getters / Accessors, etc. (pub)
 // ============================================================================
@@ -106,9 +105,14 @@ impl<L> GenTree<L> {
     ///
     /// # Returns
     /// The index of the newly created root vertex.
-    pub fn add_root(&mut self, children: (VertexIndex, VertexIndex), branch_length: Option<BranchLength>) -> VertexIndex {
+    pub fn add_root(
+        &mut self,
+        children: (VertexIndex, VertexIndex),
+        branch_length: Option<BranchLength>,
+    ) -> VertexIndex {
         let index = self.vertices.len();
-        self.vertices.push(Vertex::new_root(index, children, branch_length));
+        self.vertices
+            .push(Vertex::new_root(index, children, branch_length));
 
         self.root_index = index;
         self[children.0].set_parent(index);
@@ -139,9 +143,14 @@ impl<L> GenTree<L> {
     ///
     /// # Panics
     /// Panics if `branch_length` is negative.
-    pub fn add_internal_vertex(&mut self, children: (VertexIndex, VertexIndex), branch_length: Option<BranchLength>) -> VertexIndex {
+    pub fn add_internal_vertex(
+        &mut self,
+        children: (VertexIndex, VertexIndex),
+        branch_length: Option<BranchLength>,
+    ) -> VertexIndex {
         let index = self.vertices.len();
-        self.vertices.push(Vertex::new_internal(index, children, branch_length));
+        self.vertices
+            .push(Vertex::new_internal(index, children, branch_length));
 
         self[children.0].set_parent(index);
         self[children.1].set_parent(index);
@@ -162,7 +171,8 @@ impl<L> GenTree<L> {
     /// Panics if `branch_length` is negative.
     pub fn add_leaf(&mut self, branch_length: Option<BranchLength>, label: L) -> usize {
         let index = self.vertices.len();
-        self.vertices.push(Vertex::new_leaf(index, branch_length, label));
+        self.vertices
+            .push(Vertex::new_leaf(index, branch_length, label));
         index
     }
 
@@ -233,7 +243,9 @@ impl<L> GenTree<L> {
     /// Returns the number of leaves this tree was initialized to hold.
     ///
     /// This represents the capacity, not necessarily the current count of leaf vertices.
-    pub fn num_leaves_init(&self) -> usize { self.num_leaves_init }
+    pub fn num_leaves_init(&self) -> usize {
+        self.num_leaves_init
+    }
 
     /// Returns the number of leaves in this tree.
     pub fn num_leaves(&self) -> usize {
@@ -318,7 +330,8 @@ impl<L> GenTree<L> {
     /// Panics if not all vertices (besides root) have an associated [BranchLength],
     /// which can be checked first with `vertices_have_branch_lengths()`.
     pub fn total_branch_length(&self) -> f64 {
-        self.vertices.iter()
+        self.vertices
+            .iter()
             .filter_map(|v| v.branch_length())
             .map(|bl| *bl)
             .sum::<f64>()
@@ -492,8 +505,11 @@ impl CompactTree {
     ///     └─ [3] Leaf "C" (branch: 0.4)
     /// ```
     pub fn print_tree(&self, label_map: Option<&LeafLabelMap>) {
-        println!("Tree with {} leaves ({} vertices total):",
-            self.num_leaves_init, self.vertices.len());
+        println!(
+            "Tree with {} leaves ({} vertices total):",
+            self.num_leaves_init,
+            self.vertices.len()
+        );
 
         if self.root_index != NO_ROOT_SET_INDEX {
             println!("Root: vertex {}", self.root_index);
@@ -504,11 +520,23 @@ impl CompactTree {
     }
 
     /// Helper function to recursively print a vertex and its children.
-    fn print_vertex(&self, idx: usize, prefix: &str, is_last: bool, label_map: Option<&LeafLabelMap>) {
+    fn print_vertex(
+        &self,
+        idx: usize,
+        prefix: &str,
+        is_last: bool,
+        label_map: Option<&LeafLabelMap>,
+    ) {
         let vertex = &self.vertices[idx];
 
         // Print the current vertex
-        let connector = if prefix.is_empty() { "" } else if is_last { "└─ " } else { "├─ " };
+        let connector = if prefix.is_empty() {
+            ""
+        } else if is_last {
+            "└─ "
+        } else {
+            "├─ "
+        };
 
         if vertex.is_leaf() {
             let label = if let Some(map) = label_map {
@@ -527,7 +555,10 @@ impl CompactTree {
                 "(no branch)".to_string()
             };
 
-            println!("{}{}[{}] Leaf \"{}\" {}", prefix, connector, idx, label, branch_str);
+            println!(
+                "{}{}[{}] Leaf \"{}\" {}",
+                prefix, connector, idx, label, branch_str
+            );
         } else {
             let branch_str = if let Some(bl) = vertex.branch_length() {
                 format!("(branch: {:.3})", *bl)

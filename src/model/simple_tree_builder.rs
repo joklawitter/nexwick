@@ -19,7 +19,7 @@ pub struct SimpleTreeBuilder {
 }
 
 impl SimpleTreeBuilder {
-     /// Creates a new builder in the empty state.
+    /// Creates a new builder in the empty state.
     pub fn new() -> Self {
         Self { current_tree: None }
     }
@@ -44,12 +44,20 @@ impl TreeBuilder for SimpleTreeBuilder {
         tree.add_leaf(branch_len.map(BranchLength::new), label)
     }
 
-    fn add_internal(&mut self, children: (Self::VertexIdx, Self::VertexIdx), branch_len: Option<f64>) -> Self::VertexIdx {
+    fn add_internal(
+        &mut self,
+        children: (Self::VertexIdx, Self::VertexIdx),
+        branch_len: Option<f64>,
+    ) -> Self::VertexIdx {
         let tree = self.current_tree.as_mut().expect("init not called");
         tree.add_internal_vertex(children, branch_len.map(BranchLength::new))
     }
 
-    fn add_root(&mut self, children: (Self::VertexIdx, Self::VertexIdx), branch_len: Option<f64>) -> Self::VertexIdx {
+    fn add_root(
+        &mut self,
+        children: (Self::VertexIdx, Self::VertexIdx),
+        branch_len: Option<f64>,
+    ) -> Self::VertexIdx {
         let tree = self.current_tree.as_mut().expect("init not called");
         tree.add_root(children, branch_len.map(BranchLength::new))
     }

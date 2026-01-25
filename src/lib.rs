@@ -80,10 +80,10 @@ pub mod newick;
 pub mod nexus;
 pub mod parser;
 
-use crate::parser::parsing_error::ParsingError;
-use crate::model::leaf_label_map::LeafLabelMap;
-use crate::model::SimpleTree;
 use crate::model::CompactTree;
+use crate::model::SimpleTree;
+use crate::model::leaf_label_map::LeafLabelMap;
+use crate::parser::parsing_error::ParsingError;
 use std::path::Path;
 
 // ============================================================================
@@ -93,7 +93,9 @@ use std::path::Path;
 /// returning a vector of [CompactTree] together with a [LeafLabelMap].
 ///
 /// See [`nexus::parse_file`] for full documentation.
-pub fn parse_nexus_file<P: AsRef<Path>>(path: P) -> Result<(Vec<CompactTree>, LeafLabelMap), ParsingError> {
+pub fn parse_nexus_file<P: AsRef<Path>>(
+    path: P,
+) -> Result<(Vec<CompactTree>, LeafLabelMap), ParsingError> {
     nexus::parse_file(path)
 }
 
@@ -113,6 +115,8 @@ pub fn parse_newick_str<S: AsRef<str>>(newick: S) -> Result<SimpleTree, ParsingE
 /// with their shared [LeafLabelMap].
 ///
 /// See [`newick::parse_file`] for full documentation of this convenience function.
-pub fn parse_newick_file<P: AsRef<Path>>(path: P) -> Result<(Vec<CompactTree>, LeafLabelMap), ParsingError> {
+pub fn parse_newick_file<P: AsRef<Path>>(
+    path: P,
+) -> Result<(Vec<CompactTree>, LeafLabelMap), ParsingError> {
     newick::parse_file(path)
 }

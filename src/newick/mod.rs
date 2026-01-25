@@ -17,7 +17,7 @@
 //! * [`NewickParser::parse_str`] - parse a single tree
 //! * [`NewickParser::parse_all`] - parse all trees until EOF
 //! * [`NewickParser::into_iter`] - obtain an iterator over trees
-//! 
+//!
 //! # Format
 //! The Newick format has the following simple grammar:
 //! * `tree ::= vertex ';'`
@@ -46,16 +46,16 @@ mod defs;
 pub mod parser;
 pub mod writer;
 
-pub use parser::{NewickParser, NewickIterator};
-pub use writer::{NewickStyle, write_newick_file, to_newick};
+pub use parser::{NewickIterator, NewickParser};
+pub use writer::{NewickStyle, to_newick, write_newick_file};
 
 use crate::model::{CompactTree, LeafLabelMap, SimpleTree};
+use crate::parser::ParsingError;
 use crate::parser::byte_parser::ByteParser;
 use crate::parser::byte_source::InMemoryByteSource;
-use crate::parser::ParsingError;
-use std::path::Path;
 use std::fs::File;
 use std::io::Read;
+use std::path::Path;
 
 // ============================================================================
 // QUICK PARSING API (pub)
@@ -89,7 +89,9 @@ use std::io::Read;
 ///
 /// # Ok::<(), Box<dyn std::error::Error>>(())
 /// ```
-pub fn parse_file<P: AsRef<Path>>(path: P) -> Result<(Vec<CompactTree>, LeafLabelMap), ParsingError> {
+pub fn parse_file<P: AsRef<Path>>(
+    path: P,
+) -> Result<(Vec<CompactTree>, LeafLabelMap), ParsingError> {
     // Set up byte parser
     let mut contents = Vec::new();
     let mut file = File::open(path)?;

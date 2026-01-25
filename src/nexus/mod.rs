@@ -47,12 +47,12 @@ mod defs;
 pub mod parser;
 pub mod writer;
 
-pub use parser::{NexusParserBuilder, NexusParser, Burnin};
+pub use parser::{Burnin, NexusParser, NexusParserBuilder};
 pub use writer::NexusWriter;
 
-use crate::ParsingError;
-use crate::LeafLabelMap;
 use crate::CompactTree;
+use crate::LeafLabelMap;
+use crate::ParsingError;
 use std::path::Path;
 
 // ============================================================================
@@ -60,7 +60,7 @@ use std::path::Path;
 // ============================================================================
 /// Parses a Nexus file early and returns all trees (as [CompactTree])
 /// and together with their [label mapping](LeafLabelMap`).
-/// 
+///
 /// This is a convenience function to parse a file in Nexus format containing
 /// at least a TAXA and a TREE block, with optional TRANSLATE command.
 ///
@@ -72,9 +72,10 @@ use std::path::Path;
 ///
 /// # Errors
 /// Returns an error if the file cannot be opened or parsed.
-pub fn parse_file<P: AsRef<Path>>(path: P) -> Result<(Vec<CompactTree>, LeafLabelMap), ParsingError> {
-    let nexus_parser = NexusParserBuilder::for_file(path)?
-        .eager().build()?;
+pub fn parse_file<P: AsRef<Path>>(
+    path: P,
+) -> Result<(Vec<CompactTree>, LeafLabelMap), ParsingError> {
+    let nexus_parser = NexusParserBuilder::for_file(path)?.eager().build()?;
     let (trees, map) = nexus_parser.into_results()?;
 
     Ok((trees, map))

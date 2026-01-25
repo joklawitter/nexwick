@@ -42,12 +42,7 @@
 // Imports for doc links
 #[allow(unused_imports)]
 use crate::model::{
-    LabelResolver,
-    CompactTreeBuilder,
-    CompactTree,
-    LeafLabelMap,
-    SimpleTreeBuilder,
-    SimpleTree,
+    CompactTree, CompactTreeBuilder, LabelResolver, LeafLabelMap, SimpleTree, SimpleTreeBuilder,
 };
 
 use crate::model::label_storage::LabelStorage;
@@ -147,7 +142,11 @@ pub trait TreeBuilder {
     /// # Arguments
     /// * `children` — Indices of the left and right child vertices
     /// * `branch_len` — Branch length to parent, if specified in Newick string
-    fn add_internal(&mut self, children: (Self::VertexIdx, Self::VertexIdx), branch_len: Option<f64>) -> Self::VertexIdx;
+    fn add_internal(
+        &mut self,
+        children: (Self::VertexIdx, Self::VertexIdx),
+        branch_len: Option<f64>,
+    ) -> Self::VertexIdx;
 
     /// Adds the root vertex, completing the tree structure.
     ///
@@ -158,7 +157,11 @@ pub trait TreeBuilder {
     /// # Arguments
     /// * `children` — Indices of the root's two child vertices
     /// * `branch_len` — Root branch length (rare, but allowed in Newick)
-    fn add_root(&mut self, children: (Self::VertexIdx, Self::VertexIdx), branch_len: Option<f64>) -> Self::VertexIdx;
+    fn add_root(
+        &mut self,
+        children: (Self::VertexIdx, Self::VertexIdx),
+        branch_len: Option<f64>,
+    ) -> Self::VertexIdx;
 
     /// Sets the name of the currently constructed tree.
     ///

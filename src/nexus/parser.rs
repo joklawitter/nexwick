@@ -4,17 +4,17 @@
 //! which offers methods to parse Nexus files with different configurations.
 
 use crate::model::label_storage::LabelStorage;
+use crate::model::tree_builder::TreeBuilder;
 use crate::model::{CompactTreeBuilder, LabelResolver};
+use crate::newick::NewickParser;
 use crate::nexus::defs::*;
 use crate::parser::byte_parser::{ByteParser, ConsumeMode::*};
 use crate::parser::byte_source::{ByteSource, InMemoryByteSource};
-use crate::newick::NewickParser;
 use crate::parser::parsing_error::ParsingError;
 use std::collections::HashMap;
 use std::fs::File;
-use std::path::Path;
 use std::io::Read;
-use crate::model::tree_builder::TreeBuilder;
+use std::path::Path;
 
 // =#========================================================================#=
 // PARSING MODE
@@ -26,10 +26,9 @@ enum TreeParsingMode<T: TreeBuilder> {
     /// Lazily parse trees as requested without storing them
     Lazy {
         /// Byte position where the first tree to parse begins (for reset)
-        start_byte_pos: usize
+        start_byte_pos: usize,
     },
 }
-
 
 // =#========================================================================#=
 // BURNIN
@@ -83,12 +82,11 @@ impl Burnin {
         const SIGNIFICANT_BURNIN_THRESHOLD: usize = 100;
 
         match &self {
-            Burnin::Count(n) => { *n >= SIGNIFICANT_BURNIN_THRESHOLD }
-            Burnin::Percentage(p) => { *p >= 0.05 }
+            Burnin::Count(n) => *n >= SIGNIFICANT_BURNIN_THRESHOLD,
+            Burnin::Percentage(p) => *p >= 0.05,
         }
     }
 }
-
 
 // =#========================================================================#=
 // NEXUS PARSER BUILDER
@@ -348,12 +346,13 @@ impl<B: ByteSource, T: TreeBuilder> NexusParserBuilder<B, T> {
     ///     .with_tree_builder(YourTreeBuilder::new())
     ///     .build()?;
     /// ```
-    pub fn with_tree_builder<T2: TreeBuilder>(self, tree_builder: T2)
-        -> NexusParserBuilder<B, T2> {
+    pub fn with_tree_builder<T2: TreeBuilder>(self, tree_builder: T2) -> NexusParserBuilder<B, T2> {
         NexusParserBuilder {
             mode: match self.mode {
                 TreeParsingMode::Eager { .. } => TreeParsingMode::Eager { trees: Vec::new() },
-                TreeParsingMode::Lazy { start_byte_pos } => TreeParsingMode::Lazy { start_byte_pos },
+                TreeParsingMode::Lazy { start_byte_pos } => {
+                    TreeParsingMode::Lazy { start_byte_pos }
+                }
             },
             source: self.source,
             burnin: self.burnin,
@@ -419,7 +418,6 @@ impl<B: ByteSource, T: TreeBuilder> NexusParserBuilder<B, T> {
         Ok(nexus_parser)
     }
 }
-
 
 // =#========================================================================#=
 // NEXUS PARSER
@@ -549,7 +547,9 @@ impl<B: ByteSource, T: TreeBuilder> NexusParser<B, T> {
 
         // ... and based on whether it exists, pick the appropriate label resolver
         let resolver = self.choose_resolver(label_storage, map)?;
-        self.newick_parser.set_num_leaves(self.num_leaves).set_resolver(resolver);
+        self.newick_parser
+            .set_num_leaves(self.num_leaves)
+            .set_resolver(resolver);
 
         // Then move to the first tree
         self.byte_parser.skip_comment_and_whitespace()?;
@@ -596,9 +596,8 @@ impl<B: ByteSource, T: TreeBuilder> NexusParser<B, T> {
                 all_trees
             } else {
                 // Skip unwanted trees
-                let remaining_trees: Vec<_> = all_trees.into_iter()
-                    .skip(self.start_tree_pos)
-                    .collect();
+                let remaining_trees: Vec<_> =
+                    all_trees.into_iter().skip(self.start_tree_pos).collect();
                 remaining_trees
             };
 
@@ -637,16 +636,19 @@ impl<B: ByteSource, T: TreeBuilder> NexusParser<B, T> {
 
     /// Helper method to pick and configure the right [LabelResolver]
     /// at initialization.
-    fn choose_resolver(&mut self, label_storage: T::Storage, map: Option<HashMap<String, String>>)
-        -> Result<LabelResolver<T::Storage>, ParsingError> {
+    fn choose_resolver(
+        &mut self,
+        label_storage: T::Storage,
+        map: Option<HashMap<String, String>>,
+    ) -> Result<LabelResolver<T::Storage>, ParsingError> {
         Ok(match map {
-            None => {
-                LabelResolver::new_verbatim_labels_resolver(label_storage)
-            }
+            None => LabelResolver::new_verbatim_labels_resolver(label_storage),
             Some(map) => {
                 // Assert that labels match those provided in TAXA block
                 let labels_consistent = map.len() == label_storage.num_labels()
-                    && map.values().all(|label| label_storage.check_and_ref(label).is_some());
+                    && map
+                        .values()
+                        .all(|label| label_storage.check_and_ref(label).is_some());
                 if !labels_consistent {
                     return Err(ParsingError::invalid_translate_command(&self.byte_parser));
                 }
@@ -760,9 +762,7 @@ impl<B: ByteSource, T: TreeBuilder> NexusParser<B, T> {
                     None
                 }
             }
-            TreeParsingMode::Lazy { .. } => {
-                None
-            }
+            TreeParsingMode::Lazy { .. } => None,
         }
     }
 
@@ -862,7 +862,10 @@ impl<B: ByteSource, T: TreeBuilder> NexusParser<B, T> {
 
     /// Skips block, e.g. continuing until encountering and consuming `END;`.
     fn skip_to_block_end(&mut self) -> Result<(), ParsingError> {
-        if !self.byte_parser.consume_until_sequence(BLOCK_END, Inclusive) {
+        if !self
+            .byte_parser
+            .consume_until_sequence(BLOCK_END, Inclusive)
+        {
             return Err(ParsingError::unexpected_eof(&self.byte_parser));
         }
 
@@ -909,20 +912,26 @@ impl<B: ByteSource, T: TreeBuilder> NexusParser<B, T> {
         // a) Parse "DIMENSIONS NTAX="
         self.byte_parser.skip_comment_and_whitespace()?;
         if !self.byte_parser.consume_if_sequence(DIMENSIONS) {
-            return Err(ParsingError::invalid_taxa_block(&self.byte_parser,
-                String::from("Expected 'DIMENSIONS' in TAXA block.")));
+            return Err(ParsingError::invalid_taxa_block(
+                &self.byte_parser,
+                String::from("Expected 'DIMENSIONS' in TAXA block."),
+            ));
         }
 
         self.byte_parser.skip_whitespace();
         if !self.byte_parser.consume_if_sequence(NTAX) {
-            return Err(ParsingError::invalid_taxa_block(&self.byte_parser,
-                String::from("Expected 'NTAX' in TAXA block.")));
+            return Err(ParsingError::invalid_taxa_block(
+                &self.byte_parser,
+                String::from("Expected 'NTAX' in TAXA block."),
+            ));
         }
 
         self.byte_parser.skip_whitespace();
         if !self.byte_parser.consume_if(b'=') {
-            return Err(ParsingError::invalid_taxa_block(&self.byte_parser,
-                String::from("Expected '=' in TAXA block.")));
+            return Err(ParsingError::invalid_taxa_block(
+                &self.byte_parser,
+                String::from("Expected '=' in TAXA block."),
+            ));
         }
 
         // b) Read the number `n` and consume ";"
@@ -932,12 +941,19 @@ impl<B: ByteSource, T: TreeBuilder> NexusParser<B, T> {
             return Err(ParsingError::unexpected_eof(&self.byte_parser));
         }
         let ntax_str = std::str::from_utf8(self.byte_parser.slice_from(start_pos))
-            .map_err(|_| ParsingError::invalid_taxa_block(&self.byte_parser,
-                String::from("Invalid UTF-8 in ntax value")))?
+            .map_err(|_| {
+                ParsingError::invalid_taxa_block(
+                    &self.byte_parser,
+                    String::from("Invalid UTF-8 in ntax value"),
+                )
+            })?
             .trim();
-        let ntax: usize = ntax_str.parse()
-            .map_err(|_| ParsingError::invalid_taxa_block(&self.byte_parser,
-                format!("Cannot parse `ntax` value: {}", ntax_str)))?;
+        let ntax: usize = ntax_str.parse().map_err(|_| {
+            ParsingError::invalid_taxa_block(
+                &self.byte_parser,
+                format!("Cannot parse `ntax` value: {}", ntax_str),
+            )
+        })?;
         self.byte_parser.next(); // consume the semicolon
 
         self.num_leaves = ntax;
@@ -950,8 +966,10 @@ impl<B: ByteSource, T: TreeBuilder> NexusParser<B, T> {
         // a) Parse "TAXLABELS"
         self.byte_parser.skip_comment_and_whitespace()?;
         if !self.byte_parser.consume_if_sequence(TAXLABELS) {
-            return Err(ParsingError::invalid_taxa_block(&self.byte_parser,
-                String::from("Expected 'TAXLABELS' in TAXA block.")));
+            return Err(ParsingError::invalid_taxa_block(
+                &self.byte_parser,
+                String::from("Expected 'TAXLABELS' in TAXA block."),
+            ));
         }
 
         // b) Read labels until semicolon
@@ -979,8 +997,11 @@ impl<B: ByteSource, T: TreeBuilder> NexusParser<B, T> {
         if count != self.num_leaves {
             return Err(ParsingError::invalid_taxa_block(
                 &self.byte_parser,
-                format!("Number of parsed labels ({}) did not match ntax value ({}).",
-                    count, self.num_leaves)));
+                format!(
+                    "Number of parsed labels ({}) did not match ntax value ({}).",
+                    count, self.num_leaves
+                ),
+            ));
         }
 
         Ok(label_storage)
@@ -993,7 +1014,9 @@ impl<B: ByteSource, T: TreeBuilder> NexusParser<B, T> {
     /// (after any whitespace/comments).
     /// After this method, the parser will be positioned after the semicolon of
     /// the `TRANSLATE` command.
-    fn parse_tree_block_translate(&mut self) -> Result<Option<HashMap<String, String>>, ParsingError> {
+    fn parse_tree_block_translate(
+        &mut self,
+    ) -> Result<Option<HashMap<String, String>>, ParsingError> {
         // a) Parse "TRANSLATE"
         self.byte_parser.skip_comment_and_whitespace()?;
         if !self.byte_parser.consume_if_sequence(TRANSLATE) {
@@ -1001,7 +1024,10 @@ impl<B: ByteSource, T: TreeBuilder> NexusParser<B, T> {
             return if self.byte_parser.peek_is_sequence(TREE) {
                 Ok(None)
             } else {
-                Err(ParsingError::invalid_taxa_block(&self.byte_parser, String::from("Expected 'TRANSLATE' or first 'TREE' in TREES block.")))
+                Err(ParsingError::invalid_taxa_block(
+                    &self.byte_parser,
+                    String::from("Expected 'TRANSLATE' or first 'TREE' in TREES block."),
+                ))
             };
         }
 
@@ -1015,7 +1041,10 @@ impl<B: ByteSource, T: TreeBuilder> NexusParser<B, T> {
 
             // Expect a space
             if !self.byte_parser.consume_if(b' ') {
-                return Err(ParsingError::invalid_trees_block(&self.byte_parser, String::from("Expected ' ' in between key and label.")));
+                return Err(ParsingError::invalid_trees_block(
+                    &self.byte_parser,
+                    String::from("Expected ' ' in between key and label."),
+                ));
             }
 
             // Parse label
@@ -1035,9 +1064,11 @@ impl<B: ByteSource, T: TreeBuilder> NexusParser<B, T> {
             }
             // and otherwise invalid
             let char = self.byte_parser.peek().unwrap().to_string();
-            return Err(ParsingError::invalid_trees_block(&self.byte_parser, format!("Unexpected char '{char}' in TRANSLATE.")));
+            return Err(ParsingError::invalid_trees_block(
+                &self.byte_parser,
+                format!("Unexpected char '{char}' in TRANSLATE."),
+            ));
         }
-
 
         // c) small check
         assert_eq!(map.len(), self.num_leaves);
@@ -1066,7 +1097,10 @@ impl<B: ByteSource, T: TreeBuilder> NexusParser<B, T> {
 
             // Expect "TREE"
             if !self.byte_parser.consume_if_sequence(b"tree") {
-                return Err(ParsingError::invalid_trees_block(&self.byte_parser, String::from("Expected 'tree' in tree block.")));
+                return Err(ParsingError::invalid_trees_block(
+                    &self.byte_parser,
+                    String::from("Expected 'tree' in tree block."),
+                ));
             }
 
             // Parse tree name
@@ -1075,7 +1109,10 @@ impl<B: ByteSource, T: TreeBuilder> NexusParser<B, T> {
             // Expect "="
             self.byte_parser.skip_whitespace();
             if !self.byte_parser.consume_if(b'=') {
-                return Err(ParsingError::invalid_trees_block(&self.byte_parser, String::from("Expected '=' in tree block. ")));
+                return Err(ParsingError::invalid_trees_block(
+                    &self.byte_parser,
+                    String::from("Expected '=' in tree block. "),
+                ));
             }
 
             // Skip optional "[&R/U]" (rooter or unrooted tree) by considering it a comment
@@ -1120,8 +1157,10 @@ impl<B: ByteSource, T: TreeBuilder> NexusParser<B, T> {
 
         // Expect "TREE"
         if !self.byte_parser.consume_if_sequence(TREE) {
-            return Err(ParsingError::invalid_trees_block(&self.byte_parser,
-                String::from("Expected 'TREE' in tree command.")));
+            return Err(ParsingError::invalid_trees_block(
+                &self.byte_parser,
+                String::from("Expected 'TREE' in tree command."),
+            ));
         }
 
         // Parse tree name
@@ -1130,15 +1169,19 @@ impl<B: ByteSource, T: TreeBuilder> NexusParser<B, T> {
         // Expect "="
         self.byte_parser.skip_whitespace();
         if !self.byte_parser.consume_if(b'=') {
-            return Err(ParsingError::invalid_trees_block(&self.byte_parser,
-                String::from("Expected '=' after tree name in tree command.")));
+            return Err(ParsingError::invalid_trees_block(
+                &self.byte_parser,
+                String::from("Expected '=' after tree name in tree command."),
+            ));
         }
 
         // Skip optional "[&R/U]" annotation
         self.byte_parser.skip_comment_and_whitespace()?;
 
         // Parse the Newick tree
-        let tree =self.newick_parser.parse_str_and_name(&mut self.byte_parser, Some(name))?;
+        let tree = self
+            .newick_parser
+            .parse_str_and_name(&mut self.byte_parser, Some(name))?;
         Ok(Some(tree))
     }
 
@@ -1162,12 +1205,18 @@ impl<B: ByteSource, T: TreeBuilder> NexusParser<B, T> {
 
         // Expect "TREE"
         if !self.byte_parser.consume_if_sequence(TREE) {
-            return Err(ParsingError::invalid_trees_block(&self.byte_parser, String::from("Expected 'tree' in tree command.")));
+            return Err(ParsingError::invalid_trees_block(
+                &self.byte_parser,
+                String::from("Expected 'tree' in tree command."),
+            ));
         }
 
         // Skip tree name (consume until '=')
         if !self.byte_parser.consume_until(b'=', Exclusive) {
-            return Err(ParsingError::invalid_trees_block(&self.byte_parser, String::from("Expected '=' in tree command.")));
+            return Err(ParsingError::invalid_trees_block(
+                &self.byte_parser,
+                String::from("Expected '=' in tree command."),
+            ));
         }
         self.byte_parser.next(); // consume the '='
 

@@ -46,7 +46,12 @@ pub fn is_escaped(label: &str) -> bool {
 
         true
     } else {
-        !label.chars().any(|c| matches!(c, ' ' | ',' | ';' | '\t' | '\n' | '\r' | '(' | ')' | ':' | '[' | ']' | '\''))
+        !label.chars().any(|c| {
+            matches!(
+                c,
+                ' ' | ',' | ';' | '\t' | '\n' | '\r' | '(' | ')' | ':' | '[' | ']' | '\''
+            )
+        })
     }
 }
 
@@ -125,7 +130,12 @@ pub fn escape_label(label: &str) -> String {
         return fixed;
     }
 
-    if label.chars().any(|c| matches!(c, ',' | ';' | '\t' | '\n' | '\r' | '(' | ')' | ':' | '[' | ']' | '\'')) {
+    if label.chars().any(|c| {
+        matches!(
+            c,
+            ',' | ';' | '\t' | '\n' | '\r' | '(' | ')' | ':' | '[' | ']' | '\''
+        )
+    }) {
         // If contains special character, then replace single quotes with double single quotes
         let escaped = label.replace('\'', "''");
         // ... and wrap in single quotes
