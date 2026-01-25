@@ -1,12 +1,32 @@
 # Nexwick
-Rust library providing Nexus and Newick parsers to read in phylogenetic tree files and strings.
+Rust library providing **Nex**us and Ne**wick** parsers to read in phylogenetic tree files and strings.
 
-## Parser
-### NEXUS Format
-Parses trees from a NEXUS file based on the TAXA block and TREES block (including TRANSLATE command), ignoring other blocks.
 
-### Newick Strings
-Parses Newick strings with (optional) branch lengths. Does not handle extra data in vertices yet (e.g. `[@...]`).
+## Installation
 
-### Design
-Uses a mapping from leaves in the tree structure to taxa names instead of saving labels multiple times (since in posterior samples we might have thousands of trees).
+`cargo add nexwick`  or add to your Cargo.toml:
+```sh
+[dependencies]
+nexwick = "0.1"  
+```
+
+## Quick Start
+```rust
+use nexwick::{parse_newick_str, parse_nexus_file};
+// Parse a Newick string
+let tree = parse_newick_str("((A:0.1,B:0.2):0.3,C:0.4);").unwrap();
+assert_eq!(tree.num_leaves(), 3);
+// Parse a Nexus file
+let (trees, labels) = parse_nexus_file("phylo.trees").unwrap();
+```
+
+## Documentation
+
+See https://docs.rs/nexwick for full documentation, including:
+- Tree types ([CompactTree] vs [SimpleTree])
+- Parser configuration (burnin, lazy/eager mode)
+- Custom tree builders
+
+##   License
+
+Licensed under either of Apache License 2.0 or MIT license at your option.
