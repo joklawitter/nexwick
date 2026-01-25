@@ -1,6 +1,6 @@
 //! NEXUS format parser and writer for phylogenetic trees.
 //!
-//! This module mainly provides a [`NexusParser`] and [NexusParserBuilder] for reading NEXUS files
+//! This module mainly provides a [NexusParser] and [NexusParserBuilder] for reading NEXUS files
 //! containing phylogenetic trees. Supports both eager (load all trees) and lazy (parse on-demand)
 //! parser modes, with options for handling burnin and skipping initial trees.
 //!
@@ -13,7 +13,7 @@
 //!
 //! # Quick API
 //! For simple use cases with default settings:
-//! - [`parse_file`] — parses a file, returns [`CompactTree`]s + [`LeafLabelMap`]
+//! - [`parse_file`] — parses a file, returns [CompactTree]s + [LeafLabelMap]
 //!
 //! # Format
 //! A NEXUS file typically contains:
@@ -41,13 +41,14 @@
 //!   - Each pair is separated by a comma, optional whitespace and comments
 //!   - Only one mapping per taxon allowed
 //!   - Same label rules apply
+//! * Each tree has at least two leaves.
 
 mod defs;
-mod parser;
-mod writer;
+pub mod parser;
+pub mod writer;
 
-pub use self::parser::{NexusParserBuilder, NexusParser, Burnin};
-pub use self::writer::NexusWriter;
+pub use parser::{NexusParserBuilder, NexusParser, Burnin};
+pub use writer::NexusWriter;
 
 use crate::ParsingError;
 use crate::LeafLabelMap;
@@ -57,7 +58,7 @@ use std::path::Path;
 // ============================================================================
 // QUICK PARSING API (public)
 // ============================================================================
-/// Parses a Nexus file early and returns all trees (as [`CompactTree`])
+/// Parses a Nexus file early and returns all trees (as [CompactTree])
 /// and together with their [label mapping](LeafLabelMap`).
 /// 
 /// This is a convenience function to parse a file in Nexus format containing

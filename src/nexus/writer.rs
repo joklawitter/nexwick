@@ -1,4 +1,4 @@
-//! NEXUS format file writer (for tree model [`CompactTree`] +[`LeafLabelMap`]).
+//! NEXUS format file writer (for tree model [CompactTree] +[LeafLabelMap]).
 
 use crate::nexus::defs::{BLOCK_BEGIN, BLOCK_END, DIMENSIONS, NEXUS_HEADER, NTAX, TAXA, TAXLABELS, TRANSLATE, TREE, TREES};
 use crate::newick::writer::{estimate_newick_len, to_newick_with_capacity, NewickStyle};
@@ -11,10 +11,10 @@ use std::io::{BufWriter, Write};
 // =#========================================================================#=
 // NEXUS WRITER
 // =#========================================================================#=
-/// Writer for phylogenetic trees ([`CompactTree`] +[`LeafLabelMap`])
+/// Writer for phylogenetic trees ([CompactTree] +[LeafLabelMap])
 /// in NEXUS format.
 ///
-/// [`NexusWriter`] provides a buffered writer for creating NEXUS files
+/// [NexusWriter] provides a buffered writer for creating NEXUS files
 /// containing one or more phylogenetic trees with a shared leaf label mapping.
 ///
 /// # Format Structure
@@ -25,12 +25,14 @@ use std::io::{BufWriter, Write};
 ///
 /// # Example
 /// ```ignore
-/// use newick::nexus::NexusWriter;
+/// use nexwick::nexus::writer::NexusWriter;
 /// use std::fs::File;
 ///
 /// let file = File::create("output.trees")?;
 /// let mut writer = NexusWriter::new(file);
-/// writer.write_nexus(&trees, &label_map)?;
+/// writer.write_nexus(&your_trees, &your_label_map)?;
+///
+/// # Ok::<(), Box<dyn std::error::Error>>(())
 /// ```
 pub struct NexusWriter {
     bw: BufWriter<File>,

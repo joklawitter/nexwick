@@ -1,8 +1,8 @@
 //! Low-level byte-by-byte parser for ASCII text.
 //!
-//! This module provides [ByteParser] for parser text-based file formats with support
-//! for peeking, consuming, pattern matching, and quote-aware label parser. Used as
-//! the foundation for both NEXUS and Newick parsers.
+//! This module provides [ByteParser] for parsing text-based file formats with
+//! support for peeking, consuming, pattern matching, and quote-aware label
+//! parser. Used as the foundation for both NEXUS and Newick parsers.
 
 use crate::parser::byte_parser::ConsumeMode::Inclusive;
 use crate::parser::byte_source::{ByteSource, InMemoryByteSource};
@@ -11,11 +11,13 @@ use crate::parser::parsing_error::ParsingError;
 // =#========================================================================#=
 // BYTE PARSER
 // =#========================================================================#=
-/// A byte-by-byte parser for ASCII text with support for peeking, consuming, and pattern matching.
+/// A byte-by-byte parser for ASCII text with support for peeking, consuming,
+/// and pattern matching.
 ///
-/// [ByteParser] provides parser operations for text-based formats, specifically targeting Newick and NEXUS.
-/// It operates on byte sources and assumes ASCII encoding, offering both peek, consume,
-/// and skip operations with case-insensitive matching.
+/// [ByteParser] provides parsing operations for text-based formats,
+/// specifically targeting Newick and NEXUS. It operates on byte sources and
+/// assumes ASCII encoding, offering both peek, consume, and skip operations
+/// with case-insensitive matching.
 ///
 /// # Features
 /// - Works with any ByteSource (in-memory or buffered)
@@ -24,16 +26,16 @@ use crate::parser::parsing_error::ParsingError;
 /// - Quote-aware label parser (single quotes with escaping)
 /// - Context extraction for error reporting
 ///
-/// # TODOs
-/// - Make consume_until methods comment-sensitive
+/// # Known issues
+/// - `consume_until` is not comment-sensitive
 ///
 /// # Example
 /// ```ignore
-/// use nexus_parser::parser::byte_parser::ByteParser;
-/// use nexus_parser::parser::byte_source::InMemoryByteSource;
+/// use nexwick::parser::byte_parser::ByteParser;
+/// use nexwick::parser::byte_source::InMemoryByteSource;
 ///
 /// let input = "BEGIN TREES;\n  TREE t1 = (A:1.0,B:1.0):0.0;";
-/// let source = InMemoryByteSource::new(input.as_bytes());
+/// let source = InMemoryByteSource::from_vec(input.as_bytes().to_vec());
 /// let mut parser = ByteParser::new(source);
 ///
 /// parser.skip_whitespace();

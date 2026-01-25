@@ -1,7 +1,8 @@
-//! Vertex module for phylogenetic tree representation.
+//! Provides [Vertex] struct for phylogenetic tree representations.
 //!
-//! Main component is the [Vertex] enum, coming in varieties `Root`, `Internal`, and `Leaf`,
-//! and uses [BranchLength] structure to store branch/edge lengths.
+//! Main component is the [Vertex] enum, coming in varieties `Root`,
+//! `Internal`, and `Leaf`, and uses [BranchLength] structure to store
+//! branch/edge lengths.
 
 use std::fmt;
 use crate::model::tree::VertexIndex;
@@ -16,14 +17,16 @@ const NO_PARENT_SET: VertexIndex = usize::MAX;
 /// Represents a vertex (node) in a phylogenetic tree.
 ///
 /// A vertex can be either:
-/// - **Root**: Has two children, no parent, but might have branch_length (exists for special cases)
-/// - **Internal**: Has two children, no label, might have branch_length
-/// - **Leaf**: Has no children, has label (via index) and might have branch_length
+/// - **Root**: Has two children, no parent, but might have branch length
+///             (exists for special cases)
+/// - **Internal**: Has two children, no label, might have branch length
+/// - **Leaf**: Has no children, has label (ref) and might have branch length
 ///
 /// # Invariants
-/// - `index` is index in arena; non-negative (guaranteed by `TreeIndex = usize` type)
+/// - `index` is index in arena; non-negative
 /// - `branch_length` is non-negative (enforced); might not be set
-/// - Internal vertices and Leaf have `parent` is `TreeIndex` of parent in arena; `NO_PARENT_SET = usize::MAX` only during construction
+/// - Leaves and internal vertices have `parent` is `TreeIndex` of parent in
+///   arena; `NO_PARENT_SET = usize::MAX` only during construction
 /// - Internal vertices have `children` as tuple of `TreeIndex`
 /// - Leaf vertices have a `label_index`, since many trees share labels
 #[derive(PartialEq, Debug, Clone)]
@@ -52,7 +55,7 @@ pub enum Vertex<L> {
     Leaf {
         /// Index of this vertex in the tree arena
         index: VertexIndex,
-        /// Index into the shared label map
+        /// Stored label (reference)
         label: L,
         /// Index of the parent vertex
         parent: VertexIndex,
@@ -146,7 +149,7 @@ impl<L> Vertex<L> {
         }
     }
 
-    /// Returns label if this is a leaf, else `None`.
+    /// Returns label (ref) if this is a leaf, else `None`.
     pub fn label(&self) -> Option<&L> {
         match self {
             Vertex::Leaf { label, .. } => Some(label),

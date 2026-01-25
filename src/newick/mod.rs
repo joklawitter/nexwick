@@ -1,18 +1,19 @@
 //! Newick format parser and writer for phylogenetic trees.
 //!
-//! This module provides [`NewickParser`] to parse Newick format strings
+//! This module provides [NewickParser] to parse Newick format strings
 //! into tree structures. The parser uses a
-//! [`TreeBuilder`](crate::model::TreeBuilder) internally, which also resolves
+//! [TreeBuilder](crate::model::TreeBuilder) internally, which also resolves
 //! labels. It may be used directly to parse Newick strings or when parsing a
 //! Nexus file.
 //!
 //! # Quick API
 //! For simple use cases with default settings:
-//! * [`parse_file`] - parses a file, returns [`CompactTree`]s + [`LeafLabelMap`]
-//! * [`parse_str`] - parses a single string, returns a [`SimpleTree`]
+//! * [`parse_file`] - parses a file, returns [CompactTree]s + [LeafLabelMap]
+//! * [`parse_str`] - parses a single string, returns a [SimpleTree]
 //!
 //! # Full API
-//! For more control, configure a [`NewickParser`] and provide a [`ByteParser`]:
+//! For more control, configure a [NewickParser] and
+//! provide data via a [ByteParser]:
 //! * [`NewickParser::parse_str`] - parse a single tree
 //! * [`NewickParser::parse_all`] - parse all trees until EOF
 //! * [`NewickParser::into_iter`] - obtain an iterator over trees
@@ -42,11 +43,11 @@
 //! These are considered comments for now and skipped.
 
 mod defs;
-mod parser;
+pub mod parser;
 pub mod writer;
 
-pub use self::parser::{NewickParser, NewickIterator};
-pub use self::writer::{NewickStyle, write_newick_file, to_newick};
+pub use parser::{NewickParser, NewickIterator};
+pub use writer::{NewickStyle, write_newick_file, to_newick};
 
 use crate::model::{CompactTree, LeafLabelMap, SimpleTree};
 use crate::parser::byte_parser::ByteParser;
@@ -59,7 +60,7 @@ use std::io::Read;
 // ============================================================================
 // QUICK PARSING API (pub)
 // ============================================================================
-/// Parses a Newick file eagerly and returns all trees (as [`CompactTree`])
+/// Parses a Newick file eagerly and returns all trees (as [CompactTree])
 /// together with their shared [label mapping](LeafLabelMap).
 ///
 /// This is a convenience function to parse a file containing
@@ -72,7 +73,7 @@ use std::io::Read;
 ///
 /// # Returns
 /// * `(Vec<CompactTree>, LeafLabelMap)` - All parsed trees and their shared label mapping
-/// * [`ParsingError`] - If file reading fails or Newick format is invalid
+/// * [ParsingError] - If file reading fails or Newick format is invalid
 ///
 /// # Format
 /// Expects standard Newick format with trees separated by semicolons.
@@ -80,11 +81,13 @@ use std::io::Read;
 /// and `[...]` comments and whitespace are fine.
 ///
 /// # Example
-/// ```ignore
+/// ```no_run
 /// use nexwick::newick::parse_file;
 ///
 /// let (trees, label_map) = parse_file("anseriformes.nwk")?;
 /// println!("Parsed {} trees with {} taxa", trees.len(), label_map.num_labels());
+///
+/// # Ok::<(), Box<dyn std::error::Error>>(())
 /// ```
 pub fn parse_file<P: AsRef<Path>>(path: P) -> Result<(Vec<CompactTree>, LeafLabelMap), ParsingError> {
     // Set up byte parser
@@ -101,7 +104,7 @@ pub fn parse_file<P: AsRef<Path>>(path: P) -> Result<(Vec<CompactTree>, LeafLabe
     Ok((trees, label_map))
 }
 
-/// Parses a single Newick string to obtain a [`SimpleTree`].
+/// Parses a single Newick string to obtain a [SimpleTree].
 ///
 /// This is a convenience function for quick parsing of a single Newick string
 /// using default settings and thus not requiring configuration of a parser.
@@ -110,22 +113,19 @@ pub fn parse_file<P: AsRef<Path>>(path: P) -> Result<(Vec<CompactTree>, LeafLabe
 /// * `newick` - The Newick format string to parse
 ///
 /// # Returns
-/// * [`SimpleTree`] - Tree parsed from the string
-/// * [`ParsingError`] - If the string is not valid Newick format
+/// * [SimpleTree] - Tree parsed from the string
+/// * [ParsingError] - If the string is not valid Newick format
 ///
 /// # Example
-/// ```ignore
+/// ```no_run
 /// use nexwick::newick::parse_str;
 ///
 /// let tree = parse_str("(Fratercula_cirrhata,(Fratercula_arctica,Fratercula_corniculata));")?;
+///
+/// # Ok::<(), Box<dyn std::error::Error>>(())
 /// ```
 pub fn parse_str<S: AsRef<str>>(newick: S) -> Result<SimpleTree, ParsingError> {
     let mut newick_parser = NewickParser::new_simple_defaults();
     let mut byte_parser = ByteParser::from_str(newick.as_ref());
     newick_parser.parse_str(&mut byte_parser)
 }
-
-// ============================================================================
-// QUICK WRITING API (pub)
-// ============================================================================
-// TODO pub fn to_newick(&str) -> String

@@ -1,19 +1,19 @@
-//! Provides [`TreeBuilder`] implementation structs for [`SimpleTree`].
+//! Provides [TreeBuilder] implementation structs for [SimpleTree].
 
 use crate::model::label_storage::LabelStorage;
 use crate::model::tree_builder::TreeBuilder;
 use crate::model::vertex::BranchLength;
 use crate::model::{SimpleTree, VertexIndex};
 
-/// Builder that constructs [`SimpleTree`] instances.
+/// Builder that constructs [SimpleTree] instances.
 ///
-/// Each leaf stores its label as an owned [`String`], making trees fully
+/// Each leaf stores its label as an owned [String], making trees fully
 /// self-contained. This is simpler but less memory-efficient when parsing
 /// multiple trees with the same taxa;
-/// see [`CompactTreeBuilder`](crate::model::CompactTreeBuilder)
+/// see [CompactTreeBuilder](crate::model::CompactTreeBuilder)
 /// for an alternative.
 ///
-/// Uses [`SimpleLabelStorage`] for label handling.
+/// Uses [SimpleLabelStorage] for label handling.
 pub struct SimpleTreeBuilder {
     current_tree: Option<SimpleTree>,
 }
@@ -68,13 +68,13 @@ impl TreeBuilder for SimpleTreeBuilder {
 // =#========================================================================#=
 // SIMPLE LABEL STORAGE
 // =#========================================================================S=
-/// Basic [`LabelStorage`] implementation using owned strings.
+/// Basic [LabelStorage] implementation using owned strings.
 ///
 /// Stores labels in a [`Vec<String>`] and returns cloned strings as
 /// references. Simple but involves string allocation on each operation.
 ///
 /// For more efficient storage with shared labels across trees,
-/// see [`LeafLabelMap`](crate::model::LeafLabelMap).
+/// see [LeafLabelMap](crate::model::LeafLabelMap).
 #[derive(Debug, Default)]
 pub struct SimpleLabelStorage {
     labels: Vec<String>,

@@ -96,7 +96,7 @@ fn test_skip_first() {
 fn test_burnin_count() {
     let path = Path::new("tests").join("fixtures").join("nexus_t11_n20_translate.trees");
 
-    let mut parser = NexusParserBuilder::for_file(path).unwrap()
+    let parser = NexusParserBuilder::for_file(path).unwrap()
         .with_burnin(Burnin::Count(5))
         .eager()
         .build()
@@ -121,7 +121,7 @@ fn test_burnin_percentage() {
     let path = Path::new("tests").join("fixtures").join("nexus_t11_n20_translate.trees");
 
     // 25% of 11 trees = 2.75 -> floor to 2
-    let mut parser = NexusParserBuilder::for_file(path).unwrap()
+    let parser = NexusParserBuilder::for_file(path).unwrap()
         .with_burnin(Burnin::Percentage(0.25))
         .eager()
         .build()
@@ -135,7 +135,7 @@ fn test_burnin_percentage() {
 fn test_skip_first_and_burnin() {
     let path = Path::new("tests").join("fixtures").join("nexus_t11_n20_translate.trees");
 
-    let mut parser = NexusParserBuilder::for_file(path).unwrap()
+    let parser = NexusParserBuilder::for_file(path).unwrap()
         .with_skip_first()
         .with_burnin(Burnin::Count(2))
         .eager()

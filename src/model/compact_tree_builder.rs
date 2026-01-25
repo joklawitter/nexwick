@@ -1,5 +1,4 @@
-//! Builder for [`CompactTree`] 
-//! — trees with shared label storage.
+//! Provides [TreeBuilder] implementation structs for [CompactTree].
 
 
 use crate::model::label_storage::LabelStorage;
@@ -8,22 +7,26 @@ use crate::model::vertex::BranchLength;
 use crate::model::{CompactTree, LabelIndex, LeafLabelMap, VertexIndex};
 
 
-/// Builder that constructs [`CompactTree`] instances.
+/// Builder that constructs [CompactTree] instances.
 ///
-/// [`CompactTreeBuilder`] implements [`TreeBuilder`] to construct
-/// [`CompactTree`] instances during parsing. Labels are stored externally in
-/// a [`LeafLabelMap`], with leaves holding only [`LabelIndex`] references.
+/// [CompactTreeBuilder] implements [TreeBuilder] to construct
+/// [CompactTree] instances during parsing. Labels are stored externally in
+/// a [LeafLabelMap], with leaves holding only [LabelIndex] references.
 ///
 /// This is the recommended builder for parsing multiple trees from the same
 /// file, as all trees share a single label map, avoiding string duplication.
 ///
 /// # Example
-/// ```ignore
+/// ```no_run
 /// use nexwick::newick::NewickParser;
+/// use nexwick::parser::byte_parser::ByteParser;
 ///
+/// let mut byte_parser = ByteParser::from_str("(A,(B,C));");
 /// let mut parser = NewickParser::new_compact_defaults();
-/// let trees = parser.parse_all(&mut byte_parser)?;
-/// let labels = parser.into_label_map();
+/// let trees = parser.parse_all(byte_parser)?;
+/// let labels = parser.into_label_storage();
+///
+/// # Ok::<(), Box<dyn std::error::Error>>(())
 /// ```
 pub struct CompactTreeBuilder {
     current_tree: Option<CompactTree>,

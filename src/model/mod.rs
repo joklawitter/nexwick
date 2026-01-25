@@ -1,33 +1,35 @@
 //! Data model for binary phylogenetic trees.
 //!
 //! # Tree representation
-//! Trees are represented by [`GenTree`], which uses the arena pattern to store
-//! [`Vertex`] nodes. Each vertex is either a `Root`, `Internal`, or `Leaf`,
-//! referenced by [`VertexIndex`].
+//! Trees are represented by [GenTree], which uses the arena pattern to store
+//! [Vertex] nodes. Each vertex is either a `Root`, `Internal`, or `Leaf`,
+//! referenced by [VertexIndex]. Struct thus restricted to trees with
+//! at least two leaves.
 //!
 //! Two concrete tree types are provided:
 //!
 //! | Type | Label storage | Use case |
 //! |------|---------------|----------|
-//! | [`CompactTree`] | [`LabelIndex`] into shared [`LeafLabelMap`] | Multiple trees with same taxa |
-//! | [`SimpleTree`] | Owned [`String`] per leaf | Single self-contained tree |
+//! | [CompactTree] | [LabelIndex] into shared [LeafLabelMap] | Multiple trees with same taxa |
+//! | [SimpleTree] | Owned [String] per leaf | Single self-contained tree |
 //!
 //! # Building trees
-//! Trees are typically constructed during parsing via the [`TreeBuilder`]
+//! Trees are typically constructed during parsing via the [TreeBuilder]
 //! trait, which decouples parsers from concrete tree types:
 //!
-//! - [`CompactTreeBuilder`] → [`CompactTree`]
-//! - [`SimpleTreeBuilder`] → [`SimpleTree`]
+//! - [CompactTreeBuilder] → [CompactTree]
+//! - [SimpleTreeBuilder] → [SimpleTree]
 //!
-//! You can implement [`TreeBuilder`] to construct your own tree representation
+//! You can implement [TreeBuilder] to construct your own tree representation
 //! while reusing the library's parsers.
 //!
 //! # Label handling
 //! During parsing, labels flow through:
-//! 1. [`LabelResolver`] — translates Newick strings (handles Nexus TRANSLATE blocks)
-//! 2. [`LabelStorage`] — stores labels and returns references for tree leaves
+//! 1. [LabelResolver] — translates Newick strings
+//!    (according to Nexus TRANSLATE command)
+//! 2. [LabelStorage] — stores labels and returns references for tree leaves
 //!
-//! See [tree_builder] module docs for details on this flow.
+//! See the [tree_builder] module docs for details on this flow.
 
 pub mod tree;
 pub mod vertex;

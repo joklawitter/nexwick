@@ -1,6 +1,6 @@
-//! Label resolution for Nexus file and Newick tree parsing.
+//! Provides [LabelResolver] to handle label mappings during parsing.
 //!
-//! [`LabelResolver`] wraps a [`LabelStorage`]
+//! [LabelResolver] wraps a [LabelStorage]
 //! and handles translation during parsing. For Nexus files with TRANSLATE
 //! commands, it maps keys to actual labels before calling the storage.
 
@@ -12,12 +12,12 @@ use std::fmt::{Display, Debug};
 // =#========================================================================#=
 // LABEL RESOLVER
 // =#========================================================================€=
-/// Resolves labels in Newick strings during parsing, using a [`LabelStorage`] backend.
+/// Resolves labels in Newick strings during parsing, using a [LabelStorage] backend.
 ///
 /// Different variants handle different scenarios:
-/// - [`VerbatimLabels`](Self::VerbatimLabels) — raw Newick files or NEXUS without TRANSLATE
-/// - [`NexusLabels`](Self::NexusLabels) — NEXUS with arbitrary TRANSLATE keys
-/// - [`NexusIntegerLabels`](Self::NexusIntegerLabels) — NEXUS with integer TRANSLATE keys (optimized)
+/// - [VerbatimLabels](Self::VerbatimLabels) — raw Newick files or NEXUS without TRANSLATE
+/// - [NexusLabels](Self::NexusLabels) — NEXUS with arbitrary TRANSLATE keys
+/// - [NexusIntegerLabels](Self::NexusIntegerLabels) — NEXUS with integer TRANSLATE keys (optimized)
 ///
 /// The resolver converts string labels from the parser into [`LabelStorage::LabelRef`] values,
 /// which can then be stored in tree leaves.
@@ -30,7 +30,7 @@ pub enum LabelResolver<S: LabelStorage> {
     /// - Raw Newick strings/files (without extra translation map)
     /// - Nexus file without TRANSLATE command
     ///
-    /// Each label string is passed directly to the [`LabelStorage`].
+    /// Each label string is passed directly to the [LabelStorage].
     VerbatimLabels(S),
 
     /// Resolves labels using Nexus TRANSLATE command mapping.
@@ -68,23 +68,23 @@ pub enum LabelResolver<S: LabelStorage> {
 }
 
 impl<S: LabelStorage> LabelResolver<S> {
-    /// Creates a [`VerbatimLabels`](Self::VerbatimLabels) resolver.
+    /// Creates a [VerbatimLabels](Self::VerbatimLabels) resolver.
     ///
     /// Labels are passed directly to the storage as encountered.
     ///
     /// # Arguments
-    /// * `storage` - The [`LabelStorage`] backend to populate
+    /// * `storage` - The [LabelStorage] backend to populate
     pub(crate) fn new_verbatim_labels_resolver(storage: S) -> Self {
         LabelResolver::VerbatimLabels(storage)
     }
 
-    /// Creates a [`NexusLabels`](Self::NexusLabels) resolver.
+    /// Creates a [NexusLabels](Self::NexusLabels) resolver.
     ///
     /// Builds a lookup map from TRANSLATE keys to storage references.
     ///
     /// # Arguments
     /// * `translation` - TRANSLATE block mapping (key → full taxon label)
-    /// * `storage` - The [`LabelStorage`] backend (must already contain all labels)
+    /// * `storage` - The [LabelStorage] backend (must already contain all labels)
     ///
     /// # Panics
     /// Panics if any label in `translation` is not found in `storage`.
@@ -102,13 +102,13 @@ impl<S: LabelStorage> LabelResolver<S> {
         LabelResolver::NexusLabels { index_map, storage }
     }
 
-    /// Creates a [`NexusIntegerLabels`](Self::NexusIntegerLabels) resolver.
+    /// Creates a [NexusIntegerLabels](Self::NexusIntegerLabels) resolver.
     ///
     /// Builds a direct lookup array from integer TRANSLATE keys to storage references.
     ///
     /// # Arguments
     /// * `translation` - TRANSLATE block mapping (integer key as string → full taxon label)
-    /// * `storage` - The [`LabelStorage`] backend (must already contain all labels)
+    /// * `storage` - The [LabelStorage] backend (must already contain all labels)
     ///
     /// # Panics
     /// Panics if:
@@ -224,9 +224,9 @@ impl<S: LabelStorage> LabelResolver<S> {
 
     /// Consumes the resolver and returns the underlying storage.
     ///
-    /// Use this to retrieve the [`LabelStorage`] after parsing is complete,
+    /// Use this to retrieve the [LabelStorage] after parsing is complete,
     /// e.g., to access accumulated labels or shared storage across trees
-    /// such as [`LeafLabelMap`](crate::model::LeafLabelMap).
+    /// such as [LeafLabelMap](crate::model::LeafLabelMap).
     pub(crate) fn into_label_storage(self) -> S {
         match self {
             LabelResolver::VerbatimLabels(storage) => storage,
@@ -273,7 +273,7 @@ impl<S: LabelStorage> Display for LabelResolver<S> {
 // =#========================================================================#=
 // LABEL RESOLVING ERROR
 // =#========================================================================$=
-/// Error returned when [`LabelResolver`] cannot resolve a label.
+/// Error returned when [LabelResolver] cannot resolve a label.
 #[derive(Debug)]
 pub struct LabelResolvingError(String);
 

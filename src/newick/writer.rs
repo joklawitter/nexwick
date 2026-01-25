@@ -38,11 +38,11 @@ pub enum NewickStyle {
 ///
 /// # Example
 /// ```ignore
-/// use nexus_parser::parser::writer::newick::write_newick_file;
+/// use nexwick::newick::write_newick_file;
 /// use std::fs::File;
 ///
 /// let file = File::create("trees.nwk")?;
-/// write_newick_file(file, &trees, &label_map)?;
+/// write_newick_file(file, &your_trees, &your_label_map)?;
 /// ```
 pub fn write_newick_file(file: File, trees: &[CompactTree], leaf_label_map: Option<&LeafLabelMap>) -> io::Result<()> {
     if trees.len() == 0 {

@@ -1,11 +1,11 @@
-//! Tree module for phylogenetic tree representations.
+//! Provides generic tree representations.
 //!
 //! Provides core data structures for representing phylogenetic trees:
 //! * [`GenTree<LabelRef>`] - Main tree structure using the arena pattern
 //!   for efficient memory layout, generic over way vertices handle labels.
-//! * [`CompactTree`] as realization with [`LabelIndex`]
-//! * [`SimpleTree`] as realization with [`String`]
-//! * [`VertexIndex`] as type used to index vertices in tree
+//! * [CompactTree] as realization with [LabelIndex]
+//! * [SimpleTree] as realization with [String]
+//! * [VertexIndex] as type used to index vertices in tree
 
 use crate::newick;
 use crate::newick::NewickStyle;
@@ -27,29 +27,29 @@ const NO_ROOT_SET_INDEX: VertexIndex = usize::MAX;
 // TREE
 // =$========================================================================$=
 /// A binary phylogenetic tree represented using the arena pattern
-/// on [`Vertex`].
+/// on [Vertex].
 ///
 /// Vertices are stored in a contiguous vector and referenced by
-/// [`VertexIndex`]. Aim is to avoid referencing troubles as well as to provide
+/// [VertexIndex]. Aim is to avoid referencing troubles as well as to provide
 /// efficient memory layout and cache locality for traversal operations.
 ///
 /// Generic over `L` (LabelRef), representing how leaves handle labels
 /// (e.g. as index or String).
 ///
 /// # Structure
-/// - All vertices (root, internal, and leaves) are stored in the arena
-/// - Index of root is maintained
-/// - No assumption on order of indices is maintained
+/// - All vertices (root, internal, and leaves) are stored in the arena.
+/// - Index of root is maintained.
+/// - No assumption on order of indices is maintained.
 ///   (e.g. leaves must not be first `n` indices)
 /// - Leaves handle labels via their label reference type `L`,
-/// e.g. implementation [`CompactTree`] pointing into a shared [`LeafLabelMap`].
-/// - Branch lengths are optional, but if provided must be non-negative
+/// e.g. implementation [CompactTree] pointing into a shared [LeafLabelMap].
+/// - Branch lengths are optional, but if provided must be non-negative.
 ///
 /// # Construction
 /// To construct a tree, specify its size based on the number of leaves,
 /// then add vertices one by one. Bottom-up construction is likely easiest,
 /// but indices can also be managed otherwise.
-/// Test validity with [`GenTree::is_valid`].
+/// Test validity with [`GenTree::is_valid()`].
 #[derive(Debug, Clone)]
 pub struct GenTree<L> {
     /// Number of leaf nodes in the tree

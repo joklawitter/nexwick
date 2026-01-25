@@ -49,11 +49,11 @@ pub enum ParsingErrorType {
     InvalidFormatting,
 
     /// Label in Newick string could not be resolved
-    /// by [`LabelResolver`](crate::model::LabelResolver).
+    /// by [LabelResolver](crate::model::LabelResolver).
     UnresolvedLabel(String),
 
     /// TreeBuilder method called before
-    /// [`init_next`](crate::model::TreeBuilder::init_next).
+    /// [`init_next()`](crate::model::TreeBuilder::init_next).
     BuilderNotInitialized,
 
     /// Tree structure is invalid (e.g., wrong number of children).
@@ -73,7 +73,7 @@ pub struct ParsingError {
 }
 
 impl ParsingError {
-    /// Create a [`ParsingError`] from an error type and parser state
+    /// Create a [ParsingError] from an error type and parser state
     pub fn from_parser<S: ByteSource>(kind: ParsingErrorType, parser: &ByteParser<S>) -> Self {
         Self {
             kind,
@@ -82,57 +82,57 @@ impl ParsingError {
         }
     }
 
-    /// Create a [`ParsingError`] without parser context (for builder errors)
+    /// Create a [ParsingError] without parser context (for builder errors)
     pub fn without_context(kind: ParsingErrorType) -> Self {
         Self { kind, position: 0, context: String::new() }
     }
 
-    /// Convenience constructor for [`ParsingErrorType::UnexpectedEOF`]
+    /// Convenience constructor for [ParsingErrorType::UnexpectedEOF]
     pub fn unexpected_eof<S: ByteSource>(parser: &ByteParser<S>) -> Self {
         Self::from_parser(ParsingErrorType::UnexpectedEOF, parser)
     }
 
-    /// Convenience constructor for [`ParsingErrorType::MissingNexusHeader`]
+    /// Convenience constructor for [ParsingErrorType::MissingNexusHeader]
     pub fn missing_nexus_header<S: ByteSource>(parser: &ByteParser<S>) -> Self {
         Self::from_parser(ParsingErrorType::MissingNexusHeader, parser)
     }
 
-    /// Convenience constructor for [`ParsingErrorType::InvalidBlockName`]
+    /// Convenience constructor for [ParsingErrorType::InvalidBlockName]
     pub fn invalid_block_name<S: ByteSource>(parser: &ByteParser<S>) -> Self {
         Self::from_parser(ParsingErrorType::InvalidBlockName, parser)
     }
 
-    /// Convenience constructor for [`ParsingErrorType::InvalidTaxaBlock`]
+    /// Convenience constructor for [ParsingErrorType::InvalidTaxaBlock]
     pub fn invalid_taxa_block<S: ByteSource>(parser: &ByteParser<S>, msg: String) -> Self {
         Self::from_parser(ParsingErrorType::InvalidTaxaBlock(msg), parser)
     }
 
-    /// Convenience constructor for [`ParsingErrorType::InvalidTreesBlock`]
+    /// Convenience constructor for [ParsingErrorType::InvalidTreesBlock]
     pub fn invalid_trees_block<S: ByteSource>(parser: &ByteParser<S>, msg: String) -> Self {
         Self::from_parser(ParsingErrorType::InvalidTreesBlock(msg), parser)
     }
 
-    /// Convenience constructor for [`ParsingErrorType::InvalidTranslateCommand`]
+    /// Convenience constructor for [ParsingErrorType::InvalidTranslateCommand]
     pub fn invalid_translate_command<S: ByteSource>(parser: &ByteParser<S>) -> Self {
         Self::from_parser(ParsingErrorType::InvalidTranslateCommand, parser)
     }
 
-    /// Convenience constructor for [`ParsingErrorType::UnclosedComment`]
+    /// Convenience constructor for [ParsingErrorType::UnclosedComment]
     pub fn unclosed_comment<S: ByteSource>(parser: &ByteParser<S>) -> Self {
         Self::from_parser(ParsingErrorType::UnclosedComment, parser)
     }
 
-    /// Convenience constructor for [`ParsingErrorType::InvalidNewickString`]
+    /// Convenience constructor for [ParsingErrorType::InvalidNewickString]
     pub fn invalid_newick_string<S: ByteSource>(parser: &ByteParser<S>, msg: String) -> Self {
         Self::from_parser(ParsingErrorType::InvalidNewickString(msg), parser)
     }
 
-    /// Convenience constructor for [`ParsingErrorType::InvalidFormatting`]
+    /// Convenience constructor for [ParsingErrorType::InvalidFormatting]
     pub fn invalid_formatting<S: ByteSource>(parser: &ByteParser<S>) -> Self {
         Self::from_parser(ParsingErrorType::InvalidFormatting, parser)
     }
 
-    /// Convenience constructor for [`ParsingErrorType::UnresolvedLabel`]
+    /// Convenience constructor for [ParsingErrorType::UnresolvedLabel]
     pub fn unresolved_label<S: ByteSource>(parser: &ByteParser<S>, msg: String) -> Self {
         Self::from_parser(ParsingErrorType::UnresolvedLabel(msg), parser)
     }

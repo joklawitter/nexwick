@@ -7,20 +7,19 @@ use std::fmt::{Debug, Display};
 // =#========================================================================T=
 /// Backend storage for labels during parsing.
 ///
-/// A [`LabelStorage`] works with a [`TreeBuilder`](crate::model::TreeBuilder)
+/// A [LabelStorage] works with a [TreeBuilder](crate::model::TreeBuilder)
 /// to handle leaf labels. During parsing, the
-/// [`LabelResolver`](crate::model::LabelResolver) calls storage methods to
-/// convert label strings into [`LabelRef`](Self::LabelRef) values that get
+/// [LabelResolver](crate::model::LabelResolver) calls storage methods to
+/// convert label strings into [LabelRef](Self::LabelRef) values that get
 /// passed to the builder.
 ///
-/// The associated type [`LabelRef`](Self::LabelRef) must match
-/// [`TreeBuilder::LabelRef`](crate::model::TreeBuilder::LabelRef)
-/// (compiler enforced).
+/// The associated type [LabelRef](Self::LabelRef) must match
+/// [`TreeBuilder::LabelRef`](crate::model::TreeBuilder::LabelRef).
 ///
 /// # Implementations
-/// * [`SimpleLabelStorage`](crate::model::SimpleLabelStorage):
-///    returns owned [`String`]s
-/// * [`LeafLabelMap`](crate::model::LeafLabelMap):
+/// * [SimpleLabelStorage](crate::model::SimpleLabelStorage):
+///    returns owned [String]s
+/// * [LeafLabelMap](crate::model::LeafLabelMap):
 ///   returns indices into shared storage
 pub trait LabelStorage: Debug {
     /// The reference type stored in tree leaves.

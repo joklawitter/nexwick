@@ -157,6 +157,7 @@ pub fn escape_label(label: &str) -> String {
 /// assert_eq!(unescape_label("'Australasian_Swamphen'"), "Australasian Swamphen");
 /// assert_eq!(unescape_label("'Baillon''s_Crake'"), "Baillon's Crake");
 /// ```
+#[allow(dead_code)]
 pub fn unescape_label(label: &str) -> String {
     let unquoted = if is_single_quoted(label) {
         // Remove quotes and unescape internal quotes

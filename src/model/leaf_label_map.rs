@@ -1,8 +1,8 @@
-//! Leaf label module for phylogenetic tree representation.
+//! Provides [LeafLabelMap] for [CompactTree](crate::model::CompactTree)s.
 //!
-//! [`LeafLabelMap`] implements joined storage and lookup
+//! [LeafLabelMap] implements joined storage and lookup
 //! for leaf labels of trees on the same labels/taxa.
-//! Uses type [`LabelIndex`] for indices.
+//! Uses type alias [LabelIndex] for indices.
 
 use crate::model::label_storage::LabelStorage;
 use std::collections::HashMap;
@@ -14,11 +14,11 @@ pub type LabelIndex = usize;
 // =#========================================================================#=
 // LEAF LABEL MAP
 // =#========================================================================#=
-/// Maps leaf labels (strings) to compact indices for efficient storage.
+/// Maps leaf labels (strings) to indices and vice versa.
 ///
 /// This bidirectional mapping allows multiple trees with the same taxa to
 /// share a single label storage, with each leaf referencing labels by
-/// [`LabelIndex`]. Labels are deduplicated automatically: inserting the same
+/// [LabelIndex]. Labels are deduplicated automatically: inserting the same
 /// label twice returns the same index.
 ///
 /// # Example

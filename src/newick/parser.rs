@@ -1,8 +1,8 @@
 //! Structs and logic to parse Newick strings.
 //!
-//! This module provides the [`NewickParser`] struct, which offers methods
+//! This module provides the [NewickParser] struct, which offers methods
 //! to parse files or single strings, as well as lazy parsing via a
-//! [`NewickIterator`].
+//! [NewickIterator].
 
 use crate::newick::defs::{DEFAULT_NUM_LEAVES_GUESS, NEWICK_LABEL_DELIMITERS};
 use crate::model::tree_builder::TreeBuilder;
@@ -18,17 +18,18 @@ use crate::model::simple_tree_builder::{SimpleTreeBuilder, SimpleLabelStorage};
 /// Parser (configuration) for single/multiple Newick format (binary)
 /// phylogenetic trees.
 ///
-/// Generic over [`TreeBuilder`] (construction). Uses a [`LabelResolver`]
-/// (with in turn uses the builders `LabelStorage`) to resolve any mapping,
-/// e.g. as necessary when parsing a Nexus file with a `TRANSLATE` command.
+/// Generic over [TreeBuilder] (construction). Uses a [LabelResolver]
+/// (with in turn uses the builders [LabelStorage](crate::model::LabelStorage)
+/// to resolve any mapping, e.g. as necessary when parsing a Nexus file with a
+/// `TRANSLATE` command.
 ///
 /// # Construction
 /// * [`new(tree_builder, resolver)`](Self::new) — generic constructor
 /// * [`new_compact_defaults()`](Self::new_compact_defaults)
-///     - uses [`CompactTreeBuilder`] and a [`LeafLabelMap`] with
+///     - uses [CompactTreeBuilder] and a [LeafLabelMap] with
 ///       verbatim label resolution.
 /// * [`new_simple_defaults()`](Self::new_simple_defaults)
-///     - uses [`SimpleTreeBuilder`] and a [`SimpleLabelStorage`] with
+///     - uses [SimpleTreeBuilder] and a [SimpleLabelStorage] with
 ///       verbatim label resolution.
 ///
 /// # Configuration
@@ -103,7 +104,7 @@ impl<T: TreeBuilder> NewickParser<T> {
 
     /// Replaces the resolver with a custom one.
     ///
-    /// Used by [`NexusParser`](crate::nexus::NexusParser) to provide resolvers
+    /// Used by [NexusParser](crate::nexus::NexusParser) to provide resolvers
     /// configured from TRANSLATE blocks.
     pub fn with_resolver(mut self, resolver: LabelResolver<T::Storage>) -> Self {
         self.resolver = resolver;
@@ -112,7 +113,7 @@ impl<T: TreeBuilder> NewickParser<T> {
 
     /// Replaces the resolver with a custom one.
     ///
-    /// Used by [`NexusParser`](crate::nexus::NexusParser) to provide resolvers
+    /// Used by [NexusParser](crate::nexus::NexusParser) to provide resolvers
     /// configured from TRANSLATE blocks.
     pub(crate) fn set_resolver(&mut self, resolver: LabelResolver<T::Storage>) -> &mut Self {
         self.resolver = resolver;
@@ -125,7 +126,7 @@ impl<T: TreeBuilder> NewickParser<T> {
     }
 
     /// Consumes the parser and returns the underlying
-    /// [`LabelStorage`](crate::model::LabelStorage).
+    /// [LabelStorage](crate::model::LabelStorage).
     ///
     /// This should be called after all trees have been parsed to retrieve
     /// the mapping of leaf labels to indices.
@@ -133,8 +134,8 @@ impl<T: TreeBuilder> NewickParser<T> {
         self.resolver.into_label_storage()
     }
 
-    /// Get ref to [`LabelStorage`](crate::model::LabelStorage)
-    /// of underlying [`LabelResolver`]
+    /// Get ref to [LabelStorage](crate::model::LabelStorage)
+    /// of underlying [LabelResolver]
     pub fn label_storage(&self) -> &T::Storage {
         self.resolver.label_storage()
     }
@@ -142,7 +143,7 @@ impl<T: TreeBuilder> NewickParser<T> {
 
 // Convenience Default 1
 impl NewickParser<CompactTreeBuilder> {
-    /// Creates a new [`NewickParser`] for [`CompactTree`](crate::CompactTree)
+    /// Creates a new [NewickParser] for [CompactTree](crate::CompactTree)
     /// with default settings:
     /// - Number of leaves is unknown (will be counted during parsing)
     /// - Verbatim label resolution
@@ -164,7 +165,7 @@ impl Default for NewickParser<CompactTreeBuilder> {
 
 // Convenience Default 2
 impl NewickParser<SimpleTreeBuilder> {
-    /// Creates a new [`NewickParser`] for [`SimpleTree`](crate::SimpleTree)
+    /// Creates a new [NewickParser] for [SimpleTree](crate::SimpleTree)
     /// with default settings:
     /// - Number of leaves is unknown (will be counted during parsing)
     /// - Verbatim label resolution
@@ -192,7 +193,7 @@ impl<T: TreeBuilder> NewickParser<T> {
     ///   Newick strings, except for whitespace and `[...]` comments.
     ///
     /// # Returns
-    /// A [`NewickIterator`] allowing lazy parsing of trees.
+    /// A [NewickIterator] allowing lazy parsing of trees.
     pub fn into_iter<B: ByteSource>(self, byte_parser: ByteParser<B>) -> NewickIterator<B, T> {
         NewickIterator {
             byte_parser,
@@ -223,7 +224,7 @@ impl<T: TreeBuilder> NewickParser<T> {
         Ok(trees)
     }
 
-    /// Parses a single Newick tree from the given [`ByteParser`].
+    /// Parses a single Newick tree from the given [ByteParser].
     ///
     /// # Arguments
     /// * `parser` - The byte parser positioned at the start of a Newick tree string
@@ -236,7 +237,7 @@ impl<T: TreeBuilder> NewickParser<T> {
         self.parse_str_and_name(parser, None)
     }
 
-    /// Parses a single Newick tree from the given [`ByteParser`]
+    /// Parses a single Newick tree from the given [ByteParser]
     /// and gives it the provided name.
     ///
     /// # Arguments
@@ -283,8 +284,6 @@ impl<T: TreeBuilder> NewickParser<T> {
     fn parse_root<B: ByteSource>(&mut self, parser: &mut ByteParser<B>) -> Result<(), ParsingError> {
         parser.skip_comment_and_whitespace()?;
 
-        // TODO handle special case that root is also leaf
-
         let (left_index, right_index) = self.parse_children(parser)?;
 
         // Root may have an optional branch length (might be None)
@@ -310,7 +309,7 @@ impl<T: TreeBuilder> NewickParser<T> {
     ///
     /// # Returns
     /// - vertex index of parsed internal vertex
-    /// - [`ParsingError`] if something went wrong
+    /// - [ParsingError] if something went wrong
     fn parse_vertex<B: ByteSource>(&mut self, parser: &mut ByteParser<B>) -> Result<T::VertexIdx, ParsingError> {
         parser.skip_comment_and_whitespace()?;
         if parser.peek_is(b'(') {
@@ -326,7 +325,7 @@ impl<T: TreeBuilder> NewickParser<T> {
     ///
     /// # Returns
     /// - vertex index of parsed internal vertex
-    /// - [`ParsingError`] if something went wrong
+    /// - [ParsingError] if something went wrong
     fn parse_internal_vertex<B: ByteSource>(&mut self, parser: &mut ByteParser<B>) -> Result<T::VertexIdx, ParsingError> {
         let (left_index, right_index) = self.parse_children(parser)?;
         // Annotation parser will be added here.
@@ -341,7 +340,7 @@ impl<T: TreeBuilder> NewickParser<T> {
     ///
     /// # Returns
     /// - vertex indices of left and right child vertices
-    /// - [`ParsingError`] if something went wrong
+    /// - [ParsingError] if something went wrong
     fn parse_children<B: ByteSource>(&mut self, parser: &mut ByteParser<B>) -> Result<(T::VertexIdx, T::VertexIdx), ParsingError> {
         // Parse: "(left"
         // Calling methods should have skipped comments and whitespace
@@ -382,7 +381,7 @@ impl<T: TreeBuilder> NewickParser<T> {
     ///
     /// # Returns
     /// - vertex index of parsed leaf
-    /// - [`ParsingError`] if something went wrong,
+    /// - [ParsingError] if something went wrong,
     ///   e.g. if label couldn't be resolved
     fn parse_leaf<B: ByteSource>(&mut self, parser: &mut ByteParser<B>) -> Result<T::VertexIdx, ParsingError> {
         let label = parser.parse_label(NEWICK_LABEL_DELIMITERS)?;
@@ -404,7 +403,7 @@ impl<T: TreeBuilder> NewickParser<T> {
     /// # Returns
     /// -  `Ok(Some(branch_length))` if found a branch length and was able to parse it
     /// - `Ok(None)` if no branch length found
-    /// - [`ParsingError`] if it couldn't parse branch length value
+    /// - [ParsingError] if it couldn't parse branch length value
     fn parse_branch_length<B: ByteSource>(&mut self, parser: &mut ByteParser<B>) -> Result<Option<f64>, ParsingError> {
         // Parse: Whitespace/Comments : Whitespace/Comments
         parser.skip_comment_and_whitespace()?;
@@ -437,11 +436,11 @@ impl<T: TreeBuilder> NewickParser<T> {
 // =#========================================================================$=
 /// Iterator to parse Newick trees.
 ///
-/// Created by [`NewickParser::into_iter`].
+/// Created by [NewickParser::into_iter()].
 /// Yields `Result<T::Tree, ParsingError>` for each tree.
 ///
-/// After iteration, the underlying [`NewickParser`] can be retrieved
-/// via [`into_parser`](Self::into_parser) to access the [`TreeBuilder`]
+/// After iteration, the underlying [NewickParser] can be retrieved
+/// via [into_parser()](Self::into_parser) to access the [TreeBuilder]
 /// or other state.
 pub struct NewickIterator<B, T>
 where
@@ -458,7 +457,7 @@ where
     B: ByteSource,
     T: TreeBuilder,
 {
-    /// Consumes the iterator and returns the underlying [`NewickParser`].
+    /// Consumes the iterator and returns the underlying [NewickParser].
     pub fn into_parser(self) -> NewickParser<T> {
         self.parser
     }

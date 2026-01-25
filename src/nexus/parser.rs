@@ -1,4 +1,7 @@
-//! TODO
+//! Structs and logic to parse Nexus files.
+//!
+//! This module provides the [NexusParserBuilder] and [NexusParser] structs,
+//! which offers methods to parse Nexus files with different configurations.
 
 use crate::model::label_storage::LabelStorage;
 use crate::model::{CompactTreeBuilder, LabelResolver};
@@ -16,7 +19,7 @@ use crate::model::tree_builder::TreeBuilder;
 // =#========================================================================#=
 // PARSING MODE
 // =#========================================================================€=
-/// Mode of [`NexusParser`] when parsing the TREES block: eager or lazy.
+/// Mode of [NexusParser] when parsing the TREES block: eager or lazy.
 enum TreeParsingMode<T: TreeBuilder> {
     /// Eagerly parse all trees upfront and store them
     Eager { trees: Vec<T::Tree> },
@@ -40,8 +43,8 @@ pub enum Burnin {
     /// Skip a fixed number of trees.
     ///
     /// # Example
-    /// ```ignore
-    /// use nexus_parser::parser::parser::nexus::Burnin;
+    /// ```no_run
+    /// use nexwick::nexus::Burnin;
     /// let burnin = Burnin::Count(1001); // Skip first 1001 trees
     /// ```
     Count(usize),
@@ -52,10 +55,9 @@ pub enum Burnin {
     /// behaviour undefined otherwise.
     ///
     /// # Example
-    /// ```ignore
-    /// use nexus_parser::parser::parser::nexus::Burnin;
-    /// // Skip first 25% of trees
-    /// let burnin = Burnin::Percentage(0.25);
+    /// ```no_run
+    /// use nexwick::nexus::Burnin;
+    /// let burnin = Burnin::Percentage(0.25); // Skip first 25% of trees
     /// ```
     Percentage(f64),
 }
@@ -71,14 +73,17 @@ impl Burnin {
     pub(crate) fn to_count(&self, num_total_trees: usize) -> usize {
         match self {
             Burnin::Count(n) => *n,
-            Burnin::Percentage(pct) => (num_total_trees as f64 * pct).floor() as usize,
+            Burnin::Percentage(p) => (num_total_trees as f64 * p).floor() as usize,
         }
     }
 
-    // TODO
+    /// Returns whether the number of burnin trees is "significant enough" to
+    /// not just parse all trees and discard burnin afterwards in eager mode.
     pub(crate) fn significant(&self) -> bool {
+        const SIGNIFICANT_BURNIN_THRESHOLD: usize = 100;
+
         match &self {
-            Burnin::Count(n) => { *n >= 100 } // TODO make config constants
+            Burnin::Count(n) => { *n >= SIGNIFICANT_BURNIN_THRESHOLD }
             Burnin::Percentage(p) => { *p >= 0.05 }
         }
     }
@@ -88,22 +93,22 @@ impl Burnin {
 // =#========================================================================#=
 // NEXUS PARSER BUILDER
 // =#========================================================================$=
-/// Builder for configuring and creating a [`NexusParser`].
+/// Builder for configuring and creating a [NexusParser].
 ///
 /// This builder provides an API for configuring how NEXUS files should be
 /// parsed before initialization. Once configured, call
 /// [`build()`](NexusParserBuilder::build) to create an initialized
-/// [`NexusParser`] ready for tree retrieval.
+/// [NexusParser] ready for tree retrieval.
 ///
 /// Generic over:
-/// * `B: ByteSource` — as used by the byte parser
-/// * `T: TreeBuilder` — the tree builder (default: [`CompactTreeBuilder`])
+/// * `T: TreeBuilder` — the tree builder (default: [CompactTreeBuilder])
+/// * `B: ByteSource` — as used by the byte parser providing the data
 ///
 /// # Configuration Options
 /// * **Tree builder**:
 ///   - [`with_tree_builder()`](Self::with_tree_builder)
-///     — Use a custom [`TreeBuilder`] (or switch to
-///     [`SimpleTreeBuilder`](crate::model::SimpleTreeBuilder))
+///     — Use a custom [TreeBuilder] (or switch to
+///     [SimpleTreeBuilder](crate::model::SimpleTreeBuilder))
 ///
 /// * **Parsing mode**: Choose between eager or lazy:
 ///   - [`eager()`](Self::eager) — Parse and store all trees during build (default)
@@ -119,7 +124,7 @@ impl Burnin {
 ///     — Skip a fixed count or percentage
 ///
 /// # Example
-/// ```ignore
+/// ```no_run
 /// use nexwick::nexus::{NexusParserBuilder, Burnin};
 ///
 /// // Parse a NEXUS file with 10% burnin, eagerly loading all trees
@@ -132,6 +137,7 @@ impl Burnin {
 /// while let Some(tree) = parser.next_tree_ref() {
 ///     println!("Tree height: {}", tree.height());
 /// }
+/// # Ok::<(), Box<dyn std::error::Error>>(())
 /// ```
 pub struct NexusParserBuilder<B: ByteSource, T: TreeBuilder> {
     mode: TreeParsingMode<T>,
@@ -164,11 +170,15 @@ impl NexusParserBuilder<InMemoryByteSource, CompactTreeBuilder> {
     /// Returns an I/O error if the file cannot be read
     ///
     /// # Example
-    /// ```ignore
+    /// ```no_run
+    /// use nexwick::nexus::{NexusParserBuilder, Burnin};
+    ///
     /// let parser = NexusParserBuilder::for_file("falconidae.trees")?
     ///     .with_burnin(Burnin::Count(1000))
     ///     .with_skip_first()
     ///     .build()?;
+    ///
+    /// # Ok::<(), Box<dyn std::error::Error>>(())
     /// ```
     pub fn for_file<P: AsRef<Path>>(path: P) -> std::io::Result<Self> {
         // Read entire file into memory
@@ -204,12 +214,15 @@ impl<B: ByteSource, T: TreeBuilder> NexusParserBuilder<B, T> {
     /// The builder with eager mode configured
     ///
     /// # Example
-    /// ```ignore
-    /// let parser = NexusParserBuilder::for_file(path)?
+    /// ```no_run
+    /// use nexwick::nexus::NexusParserBuilder;
+    ///
+    /// let parser = NexusParserBuilder::for_file("hirundinidae.trees")?
     ///     .eager()  // Parse all trees during build()
     ///     .build()?;
+    /// let (trees, label_storage) = parser.into_results().unwrap();
     ///
-    /// let (trees, label_storage) = parser.into_results();
+    /// # Ok::<(), Box<dyn std::error::Error>>(())
     /// ```
     pub fn eager(mut self) -> Self {
         self.mode = TreeParsingMode::Eager { trees: Vec::new() };
@@ -226,8 +239,10 @@ impl<B: ByteSource, T: TreeBuilder> NexusParserBuilder<B, T> {
     /// The builder with lazy mode configured
     ///
     /// # Example
-    /// ```ignore
-    /// let parser = NexusParserBuilder::for_file(path)?
+    /// ```no_run
+    /// use nexwick::nexus::NexusParserBuilder;
+    ///
+    /// let mut parser = NexusParserBuilder::for_file("rhipiduridae.trees")?
     ///     .lazy()  // Parse trees on-demand
     ///     .build()?;
     ///
@@ -235,6 +250,8 @@ impl<B: ByteSource, T: TreeBuilder> NexusParserBuilder<B, T> {
     /// while let Some(tree) = parser.next_tree()? {
     ///     // Process tree
     /// }
+    ///
+    /// # Ok::<(), Box<dyn std::error::Error>>(())
     /// ```
     pub fn lazy(mut self) -> Self {
         self.mode = TreeParsingMode::Lazy { start_byte_pos: 0 };
@@ -259,16 +276,20 @@ impl<B: ByteSource, T: TreeBuilder> NexusParserBuilder<B, T> {
     /// * `burnin` - The burnin specification ([Burnin::Count] or [Burnin::Percentage])
     ///
     /// # Example
-    /// ```ignore
+    /// ```no_run
+    /// use nexwick::nexus::{NexusParserBuilder, Burnin};
+    ///
     /// // Skip first 1000 trees
-    /// let parser = NexusParserBuilder::for_file(path)?
+    /// let parser = NexusParserBuilder::for_file("sylviidae.trees")?
     ///     .with_burnin(Burnin::Count(1000))
     ///     .build()?;
     ///
     /// // Skip first 1% of trees
-    /// let parser = NexusParserBuilder::for_file(path)?
+    /// let parser = NexusParserBuilder::for_file("sylviidae.trees")?
     ///     .with_burnin(Burnin::Percentage(0.01))
     ///     .build()?;
+    ///
+    /// # Ok::<(), Box<dyn std::error::Error>>(())
     /// ```
     pub fn with_burnin(mut self, burnin: Burnin) -> Self {
         self.burnin = burnin;
@@ -289,33 +310,37 @@ impl<B: ByteSource, T: TreeBuilder> NexusParserBuilder<B, T> {
     /// The builder with skip-first configured
     ///
     /// # Example
-    /// ```ignore
+    /// ```no_run
+    /// use nexwick::nexus::{NexusParserBuilder, Burnin};
+    ///
     /// // Skip first tree (often a consensus tree)
-    /// let parser = NexusParserBuilder::for_file(path)?
+    /// let parser = NexusParserBuilder::for_file("paradisaeidae.trees")?
     ///     .with_skip_first()
     ///     .build()?;
     ///
     /// // Skip first tree AND apply 3% burnin to the rest
-    /// let parser = NexusParserBuilder::for_file(path)?
+    /// let parser = NexusParserBuilder::for_file("paradisaeidae.trees")?
     ///     .with_skip_first()
     ///     .with_burnin(Burnin::Percentage(0.03))
     ///     .build()?;
+    ///
+    /// # Ok::<(), Box<dyn std::error::Error>>(())
     /// ```
     pub fn with_skip_first(mut self) -> Self {
         self.skip_first = true;
         self
     }
 
-    /// Configure the parser to use custom [`TreeBuilder`].
+    /// Configure the parser to use custom [TreeBuilder].
     ///
-    /// Instead of using the default [`CompactTreeBuilder`], another
-    /// implementation of [`TreeBuilder`] can be provided. This is then
+    /// Instead of using the default [CompactTreeBuilder], another
+    /// implementation of [TreeBuilder] can be provided. This is then
     /// used when parsing Newick strings to let it build trees.
-    /// Furthermore, it must provide a [`LabelStorage`] that can be used by
-    /// the [`LabelResolver`].
+    /// Furthermore, it must provide a [LabelStorage] that can be used by
+    /// the [LabelResolver].
     ///
     /// # Returns
-    /// The builder with custom [`TreeBuilder`] set
+    /// The builder with custom [TreeBuilder] set
     ///
     /// # Example
     /// ```ignore
@@ -337,7 +362,7 @@ impl<B: ByteSource, T: TreeBuilder> NexusParserBuilder<B, T> {
         }
     }
 
-    /// Builds and initializes the [`NexusParser`] with the configured settings.
+    /// Builds and initializes the [NexusParser] with the configured settings.
     ///
     /// This method:
     /// 1. Creates the parser with the configured options
@@ -353,24 +378,28 @@ impl<B: ByteSource, T: TreeBuilder> NexusParserBuilder<B, T> {
     /// or [`into_results()`](NexusParser::into_results) (for eager mode).
     ///
     /// # Returns
-    /// An initialized [`NexusParser`] ready for tree retrieval
+    /// An initialized [NexusParser] ready for tree retrieval
     ///
     /// # Errors
-    /// Returns a [`ParsingError`] if:
+    /// Returns a [ParsingError] if:
     /// - The file is not a valid NEXUS file
     /// - Required blocks (TAXA, TREES) are missing
     /// - The NEXUS format is malformed
     /// - Tree parser fails (in eager mode) for some reason
     ///
     /// # Example
-    /// ```ignore
-    /// let parser = NexusParserBuilder::for_file(path)?
+    /// ```no_run
+    /// use nexwick::nexus::{NexusParserBuilder, Burnin};
+    ///
+    /// let parser = NexusParserBuilder::for_file("dinornithidae.trees")?
     ///     .with_burnin(Burnin::Percentage(0.1))
     ///     .eager()    // (Not necessary, because default)
     ///     .build()?;  // Parses NEXUS structure and all trees
     ///
     /// // Parser is now ready
     /// println!("Found {} trees", parser.num_trees());
+    ///
+    /// # Ok::<(), Box<dyn std::error::Error>>(())
     /// ```
     pub fn build(self) -> Result<NexusParser<B, T>, ParsingError> {
         let mut nexus_parser = NexusParser {
@@ -397,20 +426,22 @@ impl<B: ByteSource, T: TreeBuilder> NexusParserBuilder<B, T> {
 // =#========================================================================$=
 /// Parser for NEXUS phylogenetic tree files.
 ///
-/// Created via [`NexusParserBuilder`]. Provides access to trees parsed from
+/// Created via [NexusParserBuilder]. Provides access to trees parsed from
 /// NEXUS format files (BEAST2, MrBayes, RevBayes, etc.).
 ///
 /// # Construction
-/// Use [`NexusParserBuilder`] to configure and create a parser:
+/// Use [NexusParserBuilder] to configure and create a parser:
 ///
-/// ```ignore
-/// use nexwick::nexus::{NexusParserBuilder, NexusParser, Burnin};
+/// ```no_run
+/// use nexwick::nexus::{NexusParserBuilder, Burnin};
 ///
-/// let mut parser = NexusParserBuilder::for_file("phylo.trees")?
+/// let mut parser = NexusParserBuilder::for_file("numididae.trees")?
 ///     .with_skip_first()
 ///     .with_burnin(Burnin::Percentage(0.25))
 ///     .eager()
 ///     .build()?;
+///
+/// # Ok::<(), Box<dyn std::error::Error>>(())
 /// ```
 ///
 /// # Usage
@@ -428,8 +459,10 @@ impl<B: ByteSource, T: TreeBuilder> NexusParserBuilder<B, T> {
 /// * [next_tree_ref()](Self::next_tree_ref) — Iterate by reference (no cloning)
 /// * [into_results()](Self::into_results) — Consume and get all trees
 ///
-/// ```ignore
-/// let mut parser = NexusParserBuilder::for_file("phylo.trees")?
+/// ```no_run
+/// use nexwick::nexus::{NexusParserBuilder, Burnin};
+///
+/// let mut parser = NexusParserBuilder::for_file("momotidae.trees")?
 ///     .eager()    // not necessary, as default
 ///     .build()?;
 /// while let Some(tree) = parser.next_tree_ref() {
@@ -438,6 +471,8 @@ impl<B: ByteSource, T: TreeBuilder> NexusParserBuilder<B, T> {
 ///
 /// // Extract everything at once
 /// let (trees, labels) = parser.into_results()?;
+///
+/// # Ok::<(), Box<dyn std::error::Error>>(())
 /// ```
 ///
 /// **Lazy mode** (trees parsed on-demand):
@@ -445,13 +480,17 @@ impl<B: ByteSource, T: TreeBuilder> NexusParserBuilder<B, T> {
 /// - Can use [`reset()`](Self::reset) to iterate multiple times but retrieving
 ///   trees then requires reparsing
 ///
-/// ```ignore
-/// let mut parser = NexusParserBuilder::for_file("phylo.trees")?
+/// ```no_run
+/// use nexwick::nexus::{NexusParserBuilder, Burnin};
+///
+/// let mut parser = NexusParserBuilder::for_file("jacanidae.trees")?
 ///     .lazy()
 ///     .build()?;
 /// while let Some(tree) = parser.next_tree()? {
 ///     println!("Height: {}", tree.height());
 /// }
+///
+/// # Ok::<(), Box<dyn std::error::Error>>(())
 /// ```
 pub struct NexusParser<B: ByteSource, T: TreeBuilder> {
     /// Mode to parse trees
@@ -596,7 +635,7 @@ impl<B: ByteSource, T: TreeBuilder> NexusParser<B, T> {
         self.tree_pos = skip_count;
     }
 
-    /// Helper method to pick and configure the right [`LabelResolver`]
+    /// Helper method to pick and configure the right [LabelResolver]
     /// at initialization.
     fn choose_resolver(&mut self, label_storage: T::Storage, map: Option<HashMap<String, String>>)
         -> Result<LabelResolver<T::Storage>, ParsingError> {
@@ -639,27 +678,27 @@ impl<B: ByteSource, T: TreeBuilder> NexusParser<B, T> {
 // De/Construction (pub)
 // ============================================================================
 impl<B: ByteSource, T: TreeBuilder> NexusParser<B, T> {
-    /// Consumes this [`NexusParser`] and returns the build [`LabelStorage`].
+    /// Consumes this [NexusParser] and returns the build [LabelStorage].
     ///
     /// This extracts the final underlying label storage,
     /// such as the label-to-index mapping used by
-    /// [`LeafLabelMap`](crate::model::LeafLabelMap),
+    /// [LeafLabelMap](crate::model::LeafLabelMap),
     /// regardless of eager/lazy configuration.
     ///
     /// # Returns
-    /// The [`LabelStorage`] based on the parsed Nexus file.
+    /// The [LabelStorage] based on the parsed Nexus file.
     pub fn into_label_storage(self) -> T::Storage {
         self.newick_parser.into_label_storage()
     }
 
-    /// Consumes this [`NexusParser`] and returns the resulting `T::Tree`s
-    /// and [`LabelStorage`].
+    /// Consumes this [NexusParser] and returns the resulting `T::Tree`s
+    /// and [LabelStorage].
     ///
     /// This parses all trees and extracts the final underlying label-to-index mapping,
     /// regardless of the eager/lazy configuration.
     ///
     /// # Returns
-    /// A vector of the `T::Tree`s and the corresponding [`LabelStorage`]
+    /// A vector of the `T::Tree`s and the corresponding [LabelStorage]
     /// from the parsed Nexus file.
     pub fn into_results(mut self) -> Result<(Vec<T::Tree>, T::Storage), ParsingError> {
         match self.mode {
@@ -687,18 +726,18 @@ impl<B: ByteSource, T: TreeBuilder> NexusParser<B, T> {
         self.num_leaves
     }
 
-    /// Get ref to [`LabelStorage`] of all taxa based on TAXA block
+    /// Get ref to [LabelStorage] of all taxa based on TAXA block
     pub fn label_storage(&self) -> &T::Storage {
         self.newick_parser.label_storage()
     }
 
     /// Get the number of trees (without burnin trees)
-    pub fn num_trees(&mut self) -> usize {
+    pub fn num_trees(&self) -> usize {
         self.num_trees
     }
 
     /// Get the total number of trees including skipped+burnin
-    pub fn num_total_trees(&mut self) -> usize {
+    pub fn num_total_trees(&self) -> usize {
         self.num_total_trees
     }
 
@@ -730,8 +769,8 @@ impl<B: ByteSource, T: TreeBuilder> NexusParser<B, T> {
     /// Parses and returns the next tree.
     ///
     /// Intended for **lazy mode** only. In eager mode return `Ok(None)` as
-    /// trees are already parsed -> use [`next_tree_ref`](Self::next_tree_ref)
-    /// or [`into_results`](Self::into_results) instead.
+    /// trees are already parsed -> use [`next_tree_ref()`](Self::next_tree_ref)
+    /// or [`into_results()`](Self::into_results) instead.
     ///
     /// # Returns
     /// * `Ok(Some(Tree))` - The next tree (owned, lazy mode only)
@@ -798,7 +837,7 @@ impl<B: ByteSource, T: TreeBuilder> NexusParser<B, T> {
 
     /// Detects the next Nexus block, which must start with header
     /// `BEGIN <BlockType>;` (case-insensitive), consumes its header,
-    /// and returns its BlockType, or a [`ParsingError`] if something went wrong.
+    /// and returns its BlockType, or a [ParsingError] if something went wrong.
     fn detect_next_block(&mut self) -> Result<NexusBlock, ParsingError> {
         self.byte_parser.skip_comment_and_whitespace()?;
 
@@ -845,7 +884,7 @@ impl<B: ByteSource, T: TreeBuilder> NexusParser<B, T> {
     /// * Comments allowed outside the two commands
     ///
     /// # Errors
-    /// Returns [`ParsingError::UnexpectedEOF`] if block, command, or comment
+    /// Returns [ParsingError::UnexpectedEOF] if block, command, or comment
     /// not properly closed, and [ParsingErrror::InvalidTaxaBlock] if commands
     /// not encountered in expected order (as specified above).
     fn parse_taxa_block(&mut self) -> Result<T::Storage, ParsingError> {
@@ -906,7 +945,7 @@ impl<B: ByteSource, T: TreeBuilder> NexusParser<B, T> {
     }
 
     /// Helps parsing TAXA block, responsible for parsing the `TAXLABEL`
-    /// command and returning the parsed taxa as [`LabelStorage`].
+    /// command and returning the parsed taxa as [LabelStorage].
     fn parse_taxa_block_labels(&mut self) -> Result<T::Storage, ParsingError> {
         // a) Parse "TAXLABELS"
         self.byte_parser.skip_comment_and_whitespace()?;
