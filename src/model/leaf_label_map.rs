@@ -105,7 +105,7 @@ impl LeafLabelMap {
     /// # Returns
     /// `Some(index)` if the label exists, `None` otherwise
     pub fn get_index(&self, label: &str) -> Option<LabelIndex> {
-        self.map.get(label).map(|&index| index)
+        self.map.get(label).copied()
     }
 
     /// Retrieves the leaf label for a given index.

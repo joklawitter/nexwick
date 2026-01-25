@@ -18,7 +18,7 @@ const NO_PARENT_SET: VertexIndex = usize::MAX;
 ///
 /// A vertex can be either:
 /// - **Root**: Has two children, no parent, but might have branch length
-///             (exists for special cases)
+///   (exists for special cases)
 /// - **Internal**: Has two children, no label, might have branch length
 /// - **Leaf**: Has no children, has label (ref) and might have branch length
 ///

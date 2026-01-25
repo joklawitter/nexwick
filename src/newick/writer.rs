@@ -49,7 +49,7 @@ pub fn write_newick_file(
     trees: &[CompactTree],
     leaf_label_map: Option<&LeafLabelMap>,
 ) -> io::Result<()> {
-    if trees.len() == 0 {
+    if trees.is_empty() {
         return Ok(());
     }
 
@@ -185,13 +185,7 @@ pub(crate) fn to_newick_with_capacity(
 
     let mut newick = String::with_capacity(estimated_capacity);
 
-    build_newick(
-        &tree,
-        &mut newick,
-        tree.root_index(),
-        &style,
-        leaf_label_map,
-    );
+    build_newick(tree, &mut newick, tree.root_index(), style, leaf_label_map);
     newick.push(';');
 
     newick
@@ -248,10 +242,7 @@ pub(crate) fn estimate_newick_len(
     };
 
     // => Total
-
-    let estimated_capacity = structure_capacity + label_capacity + branch_capacity + BUFFER_CHARS;
-
-    estimated_capacity
+    structure_capacity + label_capacity + branch_capacity + BUFFER_CHARS
 }
 
 /// Calculates the total number of characters needed to represent all indices.

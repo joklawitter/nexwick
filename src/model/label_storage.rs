@@ -18,7 +18,7 @@ use std::fmt::{Debug, Display};
 ///
 /// # Implementations
 /// * [SimpleLabelStorage](crate::model::SimpleLabelStorage):
-///    returns owned [String]s
+///   returns owned [String]s
 /// * [LeafLabelMap](crate::model::LeafLabelMap):
 ///   returns indices into shared storage
 pub trait LabelStorage: Debug {

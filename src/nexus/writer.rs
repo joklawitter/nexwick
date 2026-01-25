@@ -65,7 +65,7 @@ impl NexusWriter {
     /// Returns an I/O error if writing fails
     pub fn write_nexus(
         &mut self,
-        trees: &Vec<CompactTree>,
+        trees: &[CompactTree],
         leaf_label_map: &LeafLabelMap,
     ) -> io::Result<()> {
         self.header()?
@@ -119,7 +119,7 @@ impl NexusWriter {
     /// Writes the TREES block with TRANSLATE command and tree list, returning itself for chaining.
     fn trees_block(
         &mut self,
-        trees: &Vec<CompactTree>,
+        trees: &[CompactTree],
         leaf_label_map: &LeafLabelMap,
     ) -> io::Result<&mut Self> {
         // - "Begin TREES;"
@@ -168,7 +168,7 @@ impl NexusWriter {
     }
 
     /// Writes the list of TREE commands in Newick format, returning itself for chaining.
-    fn trees_cmd_list(&mut self, trees: &Vec<CompactTree>) -> io::Result<&mut Self> {
+    fn trees_cmd_list(&mut self, trees: &[CompactTree]) -> io::Result<&mut Self> {
         if trees.is_empty() {
             return Ok(self);
         }
@@ -178,8 +178,7 @@ impl NexusWriter {
         let estimated_length = estimate_newick_len(&NewickStyle::OneIndexed, some_tree, None);
 
         // "TREE <name> = <Newick;>
-        let mut i = 0;
-        for tree in trees {
+        for (i, tree) in trees.iter().enumerate() {
             let name = tree
                 .name()
                 .map(|s| s.to_string())
@@ -195,8 +194,6 @@ impl NexusWriter {
                     to_newick_with_capacity(&NewickStyle::OneIndexed, tree, None, estimated_length)
                         .as_bytes(),
                 )?;
-
-            i += 1;
         }
 
         Ok(self)

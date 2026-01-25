@@ -69,7 +69,7 @@ impl Burnin {
     ///
     /// # Returns
     /// The number of trees to skip as burnin
-    pub(crate) fn to_count(&self, num_total_trees: usize) -> usize {
+    pub(crate) fn get_count(&self, num_total_trees: usize) -> usize {
         match self {
             Burnin::Count(n) => *n,
             Burnin::Percentage(p) => (num_total_trees as f64 * p).floor() as usize,
@@ -113,9 +113,9 @@ impl Burnin {
 ///   - [`lazy()`](Self::lazy) — Parse trees on-demand
 ///
 /// * **Skip first**: Skip the first tree (some software creates files with
-/// e.g. 10001 trees samples)
+///   e.g. 10001 trees samples)
 ///   - [`with_skip_first()`](NexusParserBuilder::with_skip_first)
-///      — Skip the very first tree
+///     — Skip the very first tree
 ///
 /// * **Burnin**: Discard initial trees (commonly used for MCMC samples)
 ///   - [`with_burnin()`](NexusParserBuilder::with_burnin)
@@ -159,7 +159,7 @@ impl NexusParserBuilder<InMemoryByteSource, CompactTreeBuilder> {
     ///
     /// # Arguments
     /// * `path` - Path to the file (accepting `&str`, `String`, `Path`, or `PathBuf`)
-    ///            with semicolon-separated list of Newick strings
+    ///   with semicolon-separated list of Newick strings
     ///
     /// # Returns
     /// A builder configured with defaults, ready for method chaining
@@ -368,7 +368,7 @@ impl<B: ByteSource, T: TreeBuilder> NexusParserBuilder<B, T> {
     /// 2. Parses the NEXUS header and TAXA block
     /// 3. Parses the TRANSLATE command (if present) in the TREES block
     /// 4. Counts total trees and if burnin set, applies both burnin
-    /// and skip-first setting
+    ///    and skip-first setting
     /// 5. In eager mode: parses and stores all remaining trees
     /// 6. In lazy mode: positions the parser at the first tree to return
     ///
@@ -447,7 +447,7 @@ impl<B: ByteSource, T: TreeBuilder> NexusParserBuilder<B, T> {
 /// - Iterate through trees with [`next_tree()`](Self::next_tree) (lazy mode)
 ///   or [`next_tree_ref()`](Self::next_tree_ref) (eager mode)
 /// - Query metadata like [`num_trees()`](Self::num_trees),
-/// [`num_leaves()`](Self::num_leaves)
+///   [`num_leaves()`](Self::num_leaves)
 /// - Access the taxon label storage with [`label_storage()`](Self::label_storage())
 /// - Extract all results with [`into_results()`](Self::into_results)
 ///
@@ -624,7 +624,7 @@ impl<B: ByteSource, T: TreeBuilder> NexusParser<B, T> {
             skip_count = 1;
         }
         // + skip burnin many of the rest
-        skip_count += self.burnin.to_count(num_total_trees - skip_count);
+        skip_count += self.burnin.get_count(num_total_trees - skip_count);
 
         // The actual number of trees that should be parsed (considered):
         self.num_trees = num_total_trees.saturating_sub(skip_count);
@@ -705,7 +705,7 @@ impl<B: ByteSource, T: TreeBuilder> NexusParser<B, T> {
     pub fn into_results(mut self) -> Result<(Vec<T::Tree>, T::Storage), ParsingError> {
         match self.mode {
             TreeParsingMode::Eager { trees } => {
-                return Ok((trees, self.newick_parser.into_label_storage()));
+                Ok((trees, self.newick_parser.into_label_storage()))
             }
             TreeParsingMode::Lazy { .. } => {
                 let mut all_trees = Vec::new();
@@ -713,7 +713,7 @@ impl<B: ByteSource, T: TreeBuilder> NexusParser<B, T> {
                 while let Some(tree) = self.next_tree()? {
                     all_trees.push(tree);
                 }
-                return Ok((all_trees, self.newick_parser.into_label_storage()));
+                Ok((all_trees, self.newick_parser.into_label_storage()))
             }
         }
     }
@@ -855,7 +855,7 @@ impl<B: ByteSource, T: TreeBuilder> NexusParser<B, T> {
             .map_err(|_| ParsingError::invalid_block_name(&self.byte_parser))?
             .to_string();
 
-        self.byte_parser.next(); // consume the ';' now (already know that this is next byte)
+        self.byte_parser.next_byte(); // consume the ';' now (already know that this is next byte)
 
         Ok(NexusBlock::from_name(&block_name))
     }
@@ -954,7 +954,7 @@ impl<B: ByteSource, T: TreeBuilder> NexusParser<B, T> {
                 format!("Cannot parse `ntax` value: {}", ntax_str),
             )
         })?;
-        self.byte_parser.next(); // consume the semicolon
+        self.byte_parser.next_byte(); // consume the semicolon
 
         self.num_leaves = ntax;
         Ok(())
@@ -980,7 +980,7 @@ impl<B: ByteSource, T: TreeBuilder> NexusParser<B, T> {
 
             // Stop once encountering semicolon (end of labels command)
             if self.byte_parser.peek() == Some(b';') {
-                self.byte_parser.next();
+                self.byte_parser.next_byte();
                 break;
             }
 
@@ -1218,7 +1218,7 @@ impl<B: ByteSource, T: TreeBuilder> NexusParser<B, T> {
                 String::from("Expected '=' in tree command."),
             ));
         }
-        self.byte_parser.next(); // consume the '='
+        self.byte_parser.next_byte(); // consume the '='
 
         // Skip optional whitespace/comments and "[&R/U]" annotation
         self.byte_parser.skip_comment_and_whitespace()?;

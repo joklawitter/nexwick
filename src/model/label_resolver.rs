@@ -36,11 +36,11 @@ pub enum LabelResolver<S: LabelStorage> {
     ///
     /// Following specification, tries to resolve in order:
     /// 1. Key provided by TRANSLATE map
-    ///     (e.g. "terny" -> "White-fronted tern")
+    ///    (e.g. "terny" -> "White-fronted tern")
     /// 2. Integer as 1-based index of label in TAXA block
-    ///     (e.g. 12 -> "White-fronted tern")
+    ///    (e.g. 12 -> "White-fronted tern")
     /// 3. Verbatim label match
-    ///     "White-fronted tern" -> "White-fronted tern"
+    ///    "White-fronted tern" -> "White-fronted tern"
     ///
     /// Use for:
     /// - Nexus file with generic TRANSLATE command
@@ -95,11 +95,13 @@ impl<S: LabelStorage> LabelResolver<S> {
         // we create a direct mapping key -> LabelRef
         let mut index_map = HashMap::with_capacity(translation.len());
         for (key, actual_label) in &translation {
-            let label_index = storage.check_and_ref(&actual_label).expect(&format!(
-                "Label {} provided by translation to resolver\
-                 not present in provided label storage.",
-                actual_label
-            ));
+            let label_index = storage.check_and_ref(actual_label).unwrap_or_else(|| {
+                panic!(
+                    "Label {} provided by translation to resolver\
+                  not present in provided label storage.",
+                    actual_label
+                )
+            });
             index_map.insert(key.clone(), label_index);
         }
 
@@ -135,7 +137,7 @@ impl<S: LabelStorage> LabelResolver<S> {
             // Parse key as integer
             let nexus_index = key
                 .parse::<usize>()
-                .expect(&format!("TRANSLATE key '{}' is not a valid integer", key));
+                .unwrap_or_else(|_| panic!("TRANSLATE key '{}' is not a valid integer", key));
 
             // Validate bounds (1-based NEXUS indexing)
             if nexus_index == 0 || nexus_index > num_labels {
@@ -146,11 +148,13 @@ impl<S: LabelStorage> LabelResolver<S> {
             }
 
             // Look up the label in the label storage
-            let label_ref = storage.check_and_ref(actual_label).expect(&format!(
-                "Label '{}' provided by translation to resolver\
-                 not present in provided label storage.",
-                actual_label
-            ));
+            let label_ref = storage.check_and_ref(actual_label).unwrap_or_else(|| {
+                panic!(
+                    "Label '{}' provided by translation to resolver\
+                    not present in provided label storage.",
+                    actual_label
+                )
+            });
 
             // Store in array (converting from 1-based to 0-based indexing)
             index_array[nexus_index - 1] = Some(label_ref);
@@ -160,7 +164,9 @@ impl<S: LabelStorage> LabelResolver<S> {
         let index_array: Vec<S::LabelRef> = index_array
             .into_iter()
             .enumerate()
-            .map(|(i, opt)| opt.expect(&format!("Missing translation for index {}", i + 1)))
+            .map(|(i, opt)| {
+                opt.unwrap_or_else(|| panic!("Missing translation for index {}", i + 1))
+            })
             .collect();
 
         LabelResolver::NexusIntegerLabels {
@@ -256,9 +262,9 @@ impl<S: LabelStorage> LabelResolver<S> {
     /// Returns a reference to the underlying storage.
     pub(crate) fn label_storage(&self) -> &S {
         match self {
-            LabelResolver::VerbatimLabels(storage) => &storage,
-            LabelResolver::NexusLabels { storage, .. } => &storage,
-            LabelResolver::NexusIntegerLabels { storage, .. } => &storage,
+            LabelResolver::VerbatimLabels(storage) => storage,
+            LabelResolver::NexusLabels { storage, .. } => storage,
+            LabelResolver::NexusIntegerLabels { storage, .. } => storage,
         }
     }
 }

@@ -25,6 +25,12 @@ impl SimpleTreeBuilder {
     }
 }
 
+impl Default for SimpleTreeBuilder {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl TreeBuilder for SimpleTreeBuilder {
     type LabelRef = String;
     type VertexIdx = VertexIndex;

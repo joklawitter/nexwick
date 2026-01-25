@@ -20,9 +20,8 @@
 //!   - Eager parser (all at once) or lazy (providing an iterator)
 //!   - Burnin: number/percentage of initial trees skipped
 //!   - Skip first: Since some Bayesian MCMC implementations include the start
-//!     tree in Nexus files,
-//! which is however not needed for analyzes, parser can be configured to
-//!     directly skip first tree.
+//!     tree in Nexus files, which is however not needed for analyzes, parser
+//!     can be configured to directly skip first tree.
 //!   - Loading full file in memory (default) and
 //!     in the future also buffered (for huge files)
 //!

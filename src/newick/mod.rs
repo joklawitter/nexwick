@@ -34,12 +34,15 @@
 //!
 //! In the extended Newick format, there can be comment-like annotation:
 //! * `[@pop_size=0.543,color=blue]`
+//!
 //! For a leaf:
 //! * label \[annotation\] \[branch_length\]
 //!   - Example: A\[@pop_size=0.543\]:2.1
+//!
 //! For an internal vertex and the root:
 //! * (children) \[annotation\] \[branch_length\]
 //!   - Example: (A,B\[@pop_seize=0.345\]:6.7
+//!
 //! These are considered comments for now and skipped.
 
 mod defs;
@@ -69,7 +72,7 @@ use std::path::Path;
 ///
 /// # Arguments
 /// * `path` - Path to the file (accepting `&str`, `String`, `Path`, or `PathBuf`)
-///            with semicolon-separated list of Newick strings
+///   with semicolon-separated list of Newick strings
 ///
 /// # Returns
 /// * `(Vec<CompactTree>, LeafLabelMap)` - All parsed trees and their shared label mapping
@@ -128,6 +131,6 @@ pub fn parse_file<P: AsRef<Path>>(
 /// ```
 pub fn parse_str<S: AsRef<str>>(newick: S) -> Result<SimpleTree, ParsingError> {
     let mut newick_parser = NewickParser::new_simple_defaults();
-    let mut byte_parser = ByteParser::from_str(newick.as_ref());
+    let mut byte_parser = ByteParser::for_str(newick.as_ref());
     newick_parser.parse_str(&mut byte_parser)
 }

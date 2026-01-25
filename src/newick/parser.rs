@@ -52,7 +52,7 @@ use crate::parser::parsing_error::ParsingError;
 /// use nexwick::parser::byte_parser::ByteParser;
 ///
 /// let input = "((A_meleagrides:1.0,A_vulturinum:1.0):0.5,(N_meleagris:1.0,G_plumifera:1.0):0.5);";
-/// let mut byte_parser = ByteParser::from_str(input);
+/// let mut byte_parser = ByteParser::for_str(input);
 /// let mut newick_parser = NewickParser::new_compact_defaults();
 ///
 /// let tree = newick_parser.parse_str(&mut byte_parser).unwrap();
@@ -462,7 +462,7 @@ impl<T: TreeBuilder> NewickParser<T> {
             // Valid characters for a float: digits, '.', '-', '+', 'e', 'E'
             if b.is_ascii_digit() || b == b'.' || b == b'-' || b == b'+' || b == b'e' || b == b'E' {
                 branch_length_str.push(b as char);
-                parser.next(); // consume it
+                parser.next_byte(); // consume it
             } else {
                 break; // Hit a delimiter like ',', ')', ';', or whitespace
             }

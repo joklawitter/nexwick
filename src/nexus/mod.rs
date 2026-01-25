@@ -25,11 +25,11 @@
 //! * A `TAXA` and a `TREES` block are present, in this order
 //! * A `TRANSLATE` command, if present, precedes any `TREE` command, with following details:
 //!   - Command is a comma seperated list of pairs of "id/short label":
-//!         `TRANSLATE [<key1=short1/id1> <label1>, ...];`
+//!     `TRANSLATE [<key1=short1/id1> <label1>, ...];`
 //!   - Mapping should *consistently* use integer or shorts as key; behaviour undefined otherwise
 //!   - `<label>` must match a label provided in `TAXA` blog.
 //!   - Length of mapping must match number of taxa/labels.
-//!         (This is a program specific requirement, not of NEXUS files.)
+//!     (This is a program specific requirement, not of NEXUS files.)
 //!   - A label with a space in it must be enclosed in single quotes and ...
 //!   - A label with an apostrophe in it must be enclosed in single quotes
 //!     and the apostrophe must be escaped with an apostrophe/single quote:

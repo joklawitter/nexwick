@@ -28,7 +28,7 @@ pub trait ByteSource {
     /// # Returns
     /// * `Some(u8)` - The current byte if available
     /// * `None` - If at end of data (EOF)
-    fn next(&mut self) -> Option<u8>;
+    fn next_byte(&mut self) -> Option<u8>;
 
     /// Returns the current position in the byte stream.
     ///
@@ -109,7 +109,7 @@ impl ByteSource for InMemoryByteSource {
     }
 
     #[inline(always)]
-    fn next(&mut self) -> Option<u8> {
+    fn next_byte(&mut self) -> Option<u8> {
         let byte = self.peek()?;
         self.pos += 1;
         Some(byte)

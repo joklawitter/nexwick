@@ -19,7 +19,7 @@ use crate::model::{CompactTree, LabelIndex, LeafLabelMap, VertexIndex};
 /// use nexwick::newick::NewickParser;
 /// use nexwick::parser::byte_parser::ByteParser;
 ///
-/// let mut byte_parser = ByteParser::from_str("(A,(B,C));");
+/// let mut byte_parser = ByteParser::for_str("(A,(B,C));");
 /// let mut parser = NewickParser::new_compact_defaults();
 /// let trees = parser.parse_all(byte_parser)?;
 /// let labels = parser.into_label_storage();
@@ -34,6 +34,12 @@ impl CompactTreeBuilder {
     /// Creates a new builder in the empty state.
     pub fn new() -> Self {
         Self { current_tree: None }
+    }
+}
+
+impl Default for CompactTreeBuilder {
+    fn default() -> Self {
+        Self::new()
     }
 }
 

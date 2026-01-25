@@ -11,7 +11,7 @@
 //!
 //! - **[LabelStorage]** gets label strings and returns `LabelRef` values
 //! - **[TreeBuilder]** receives those `LabelRef` values in
-//!     [`add_leaf`](TreeBuilder::add_leaf)
+//!   [`add_leaf`](TreeBuilder::add_leaf)
 //!
 //! During parsing, a [LabelResolver] wraps the storage and handles
 //! translation (for Nexus files with TRANSLATE blocks)

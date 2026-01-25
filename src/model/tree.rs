@@ -42,7 +42,7 @@ const NO_ROOT_SET_INDEX: VertexIndex = usize::MAX;
 /// - No assumption on order of indices is maintained.
 ///   (e.g. leaves must not be first `n` indices)
 /// - Leaves handle labels via their label reference type `L`,
-/// e.g. implementation [CompactTree] pointing into a shared [LeafLabelMap].
+///   e.g. implementation [CompactTree] pointing into a shared [LeafLabelMap].
 /// - Branch lengths are optional, but if provided must be non-negative.
 ///
 /// # Construction
@@ -457,7 +457,7 @@ impl<L: ValidLabel> GenTree<L> {
 
         // Check leaf count matches binary tree invariant:
         // for n leaves, there are 2n-1 vertices
-        let expected_leaf_count = (self.vertices.len() + 1) / 2;
+        let expected_leaf_count = self.vertices.len().div_ceil(2);
         if leaf_count != expected_leaf_count {
             return false;
         }
@@ -486,7 +486,7 @@ impl<L> std::ops::IndexMut<VertexIndex> for GenTree<L> {
 impl CompactTree {
     /// Convenience method to convert this tree to a Newick string
     pub fn to_newick(&self, style: &NewickStyle, leaf_label_map: Option<&LeafLabelMap>) -> String {
-        newick::to_newick(style, &self, leaf_label_map)
+        newick::to_newick(style, self, leaf_label_map)
     }
 
     /// Prints a visual representation of the tree to the console.

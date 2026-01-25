@@ -61,7 +61,7 @@ impl ByteParser<InMemoryByteSource> {
     ///
     /// # Arguments
     /// * `input` - The string to parse
-    pub fn from_str(input: &str) -> Self {
+    pub fn for_str(input: &str) -> Self {
         Self::new(InMemoryByteSource::from_vec(input.as_bytes().to_vec()))
     }
 }
@@ -91,8 +91,8 @@ impl<S: ByteSource> ByteParser<S> {
     /// * `Some(u8)` - The current byte if available
     /// * `None` - If at end of data (EOF)
     #[inline(always)]
-    pub fn next(&mut self) -> Option<u8> {
-        self.source.next()
+    pub fn next_byte(&mut self) -> Option<u8> {
+        self.source.next_byte()
     }
 
     /// Skips (consumes) all consecutive whitespace characters.
@@ -101,7 +101,7 @@ impl<S: ByteSource> ByteParser<S> {
     pub fn skip_whitespace(&mut self) {
         while let Some(b) = self.peek() {
             if b == b' ' || b == b'\t' || b == b'\n' || b == b'\r' {
-                self.next();
+                self.next_byte();
             } else {
                 break;
             }
@@ -213,7 +213,7 @@ impl<S: ByteSource> ByteParser<S> {
     /// `true` if the byte was matched and consumed, `false` otherwise
     pub fn consume_if(&mut self, ch: u8) -> bool {
         if self.peek_is(ch) {
-            self.next();
+            self.next_byte();
             true
         } else {
             false
@@ -247,7 +247,7 @@ impl<S: ByteSource> ByteParser<S> {
 
         // Consume the bytes
         for _ in 0..sequence.len() {
-            self.next();
+            self.next_byte();
         }
 
         true
@@ -265,11 +265,11 @@ impl<S: ByteSource> ByteParser<S> {
         while let Some(b) = self.peek() {
             if b == target {
                 if mode == ConsumeMode::Inclusive {
-                    self.next();
+                    self.next_byte();
                 }
                 return true;
             }
-            self.next();
+            self.next_byte();
         }
         false // reached EOF without finding target
     }
@@ -286,12 +286,12 @@ impl<S: ByteSource> ByteParser<S> {
         while let Some(b) = self.peek() {
             if targets.contains(&b) {
                 if mode == ConsumeMode::Inclusive {
-                    self.next();
+                    self.next_byte();
                 }
                 return Some(b); // return which one we found
             }
 
-            self.next();
+            self.next_byte();
         }
         None // reached EOF without finding target
     }
@@ -327,14 +327,14 @@ impl<S: ByteSource> ByteParser<S> {
                 if mode == ConsumeMode::Inclusive {
                     // Consume the sequence
                     for _ in 0..sequence.len() {
-                        self.next();
+                        self.next_byte();
                     }
                 }
                 return true;
             }
 
             // Move forward one byte
-            self.next();
+            self.next_byte();
         }
     }
 
@@ -434,15 +434,15 @@ impl<S: ByteSource> ByteParser<S> {
     /// # Errors
     /// Returns an error if the quoted label is not properly closed
     pub fn parse_quoted_label(&mut self) -> Result<String, ParsingError> {
-        self.next(); // consume opening '
+        self.next_byte(); // consume opening '
 
         let mut label = String::new();
-        while let Some(b) = self.next() {
+        while let Some(b) = self.next_byte() {
             if b == b'\'' {
                 // Check for escaped quote (two single quotes in a row)
                 if self.peek() == Some(b'\'') {
                     label.push('\'');
-                    self.next(); // consume second quote
+                    self.next_byte(); // consume second quote
                 } else {
                     // End of quoted label
                     break;
@@ -474,7 +474,7 @@ impl<S: ByteSource> ByteParser<S> {
                 break;
             }
             label.push(b as char);
-            self.next();
+            self.next_byte();
         }
 
         Ok(label)
@@ -491,13 +491,13 @@ impl<S: ByteSource> ByteParser<S> {
 /// ```
 /// use nexwick::parser::byte_parser::{ByteParser, ConsumeMode};
 ///
-/// let mut parser = ByteParser::from_str("TREE t1=((A:0.5,B:0.5):0.3,C:0.8):0.0");
+/// let mut parser = ByteParser::for_str("TREE t1=((A:0.5,B:0.5):0.3,C:0.8):0.0");
 ///
 /// // Inclusive: consume up to and including '=', e.g. to start of Newick string
 /// parser.consume_until(b'=', ConsumeMode::Inclusive);
 /// assert_eq!(parser.peek(), Some(b'(')); // positioned after '='
 ///
-/// let mut parser = ByteParser::from_str("('Wilson''s_Storm-petrel')");
+/// let mut parser = ByteParser::for_str("('Wilson''s_Storm-petrel')");
 ///
 /// // Exclusive: consume up to but not including "'", e.g. quoted comment start
 /// parser.consume_until(b'\'', ConsumeMode::Exclusive);
