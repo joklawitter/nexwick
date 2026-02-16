@@ -304,12 +304,10 @@ impl<T: TreeBuilder> NewickParser<T> {
         // Consume the terminating semicolon
         parser.skip_comment_and_whitespace()?;
         if !parser.consume_if(b';') {
+            let next_char = parser.peek().map(char::from);
             return Err(ParsingError::invalid_newick_string(
                 parser,
-                format!(
-                    "Expected ';' at end of tree but found {:?}",
-                    parser.peek().map(|b| b as char)
-                ),
+                format!("Expected ';' at end of tree but found {:?}", next_char),
             ));
         }
 
@@ -372,12 +370,10 @@ impl<T: TreeBuilder> NewickParser<T> {
         // Parse: "(left"
         // Calling methods should have skipped comments and whitespace
         if !parser.consume_if(b'(') {
+            let next_char = parser.peek().map(char::from);
             return Err(ParsingError::invalid_newick_string(
                 parser,
-                format!(
-                    "Expected '(' before children but found {:?}",
-                    parser.peek().map(|b| b as char)
-                ),
+                format!("Expected '(' before children but found {:?}", next_char),
             ));
         }
         let left_index = self.parse_vertex(parser)?;
@@ -385,12 +381,10 @@ impl<T: TreeBuilder> NewickParser<T> {
         // Parse: ",right"
         parser.skip_comment_and_whitespace()?;
         if !parser.consume_if(b',') {
+            let next_char = parser.peek().map(char::from);
             return Err(ParsingError::invalid_newick_string(
                 parser,
-                format!(
-                    "Expected ',' between children but found {:?}",
-                    parser.peek().map(|b| b as char)
-                ),
+                format!("Expected ',' between children but found {:?}", next_char),
             ));
         }
         let right_index = self.parse_vertex(parser)?;
@@ -398,12 +392,10 @@ impl<T: TreeBuilder> NewickParser<T> {
         // Parse: ")"
         parser.skip_comment_and_whitespace()?;
         if !parser.consume_if(b')') {
+            let next_char = parser.peek().map(char::from);
             return Err(ParsingError::invalid_newick_string(
                 parser,
-                format!(
-                    "Expected ')' after children but found {:?}",
-                    parser.peek().map(|b| b as char)
-                ),
+                format!("Expected ')' after children but found {:?}", next_char),
             ));
         }
 

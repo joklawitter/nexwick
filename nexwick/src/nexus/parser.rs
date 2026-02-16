@@ -3,18 +3,20 @@
 //! This module provides the [NexusParserBuilder] and [NexusParser] structs,
 //! which offers methods to parse Nexus files with different configurations.
 
+use std::any::Any;
 use crate::model::label_storage::LabelStorage;
 use crate::model::tree_builder::TreeBuilder;
 use crate::model::{CompactTreeBuilder, LabelResolver};
 use crate::newick::NewickParser;
 use crate::nexus::defs::*;
+use crate::parser::buffered_byte_source::BufferedByteSource;
 use crate::parser::byte_parser::{ByteParser, ConsumeMode::*};
-use crate::parser::byte_source::{ByteSource, InMemoryByteSource};
+use crate::parser::byte_source::ByteSource;
+use crate::parser::in_memory_byte_source::InMemoryByteSource;
 use crate::parser::parsing_error::ParsingError;
 use std::collections::HashMap;
-use std::fs::File;
-use std::io::Read;
-use std::path::Path;
+use std::path::{Path, PathBuf};
+use crate::nexus::parser::ReadStrategy::Automatic;
 
 // =#========================================================================#=
 // PARSING MODE
@@ -89,6 +91,29 @@ impl Burnin {
 }
 
 // =#========================================================================#=
+// BYTE SOURCE SETTING
+// =#========================================================================€=
+/// Controls how the file is read during parsing.
+///
+/// By default, the [NexusParserBuilder] uses [Automatic], which picks a
+/// strategy based on file size. Use
+/// [with_buffered_source()](NexusParserBuilder::with_buffered_source) or
+/// [with_in_memory_source()](NexusParserBuilder::with_in_memory_source)
+/// to override this.
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub enum ReadStrategy {
+    /// Read the file in chunks through a buffered I/O reader.
+    Buffered,
+
+    /// Load the entire file into a contiguous byte buffer before parsing.
+    InMemory,
+
+    /// Automatically choose between [Buffered] and [InMemory] based on
+    /// file size. This is the default.
+    Automatic,
+}
+
+// =#========================================================================#=
 // NEXUS PARSER BUILDER
 // =#========================================================================$=
 /// Builder for configuring and creating a [NexusParser].
@@ -100,7 +125,6 @@ impl Burnin {
 ///
 /// Generic over:
 /// * `T: TreeBuilder` — the tree builder (default: [CompactTreeBuilder])
-/// * `B: ByteSource` — as used by the byte parser providing the data
 ///
 /// # Configuration Options
 /// * **Tree builder**:
@@ -137,9 +161,10 @@ impl Burnin {
 /// }
 /// # Ok::<(), Box<dyn std::error::Error>>(())
 /// ```
-pub struct NexusParserBuilder<B: ByteSource, T: TreeBuilder> {
+pub struct NexusParserBuilder<T: TreeBuilder> {
     mode: TreeParsingMode<T>,
-    source: B,
+    path: PathBuf,
+    read_strategy: ReadStrategy,
     burnin: Burnin,
     skip_first: bool,
     tree_builder: T,
@@ -148,7 +173,7 @@ pub struct NexusParserBuilder<B: ByteSource, T: TreeBuilder> {
 // ============================================================================
 // Building - InMemory-ByteSource specific (pub)
 // ============================================================================
-impl NexusParserBuilder<InMemoryByteSource, CompactTreeBuilder> {
+impl NexusParserBuilder<CompactTreeBuilder> {
     /// Creates a new builder from a file.
     ///
     /// Entire file is read into memory.
@@ -179,15 +204,10 @@ impl NexusParserBuilder<InMemoryByteSource, CompactTreeBuilder> {
     /// # Ok::<(), Box<dyn std::error::Error>>(())
     /// ```
     pub fn for_file<P: AsRef<Path>>(path: P) -> std::io::Result<Self> {
-        // Read entire file into memory
-        let mut contents = Vec::new();
-        let mut file = File::open(path)?;
-        file.read_to_end(&mut contents)?;
-        let source = InMemoryByteSource::from_vec(contents);
-
         Ok(NexusParserBuilder {
             mode: TreeParsingMode::Eager { trees: Vec::new() },
-            source,
+            path: path.as_ref().to_path_buf(),
+            read_strategy: Automatic,
             burnin: Burnin::Count(0),
             skip_first: false,
             tree_builder: CompactTreeBuilder::new(),
@@ -198,7 +218,7 @@ impl NexusParserBuilder<InMemoryByteSource, CompactTreeBuilder> {
 // ============================================================================
 // Building - Generic (pub)
 // ============================================================================
-impl<B: ByteSource, T: TreeBuilder> NexusParserBuilder<B, T> {
+impl<T: TreeBuilder> NexusParserBuilder<T> {
     /// Configure the parser to use **eager mode** (parse all trees upfront).
     ///
     /// In eager mode, all trees are parsed and stored in memory during the
@@ -329,6 +349,36 @@ impl<B: ByteSource, T: TreeBuilder> NexusParserBuilder<B, T> {
         self
     }
 
+    /// Configure the parser to read the file using a **buffered reader**.
+    ///
+    /// The file is read in chunks through a buffered I/O reader, keeping
+    /// memory usage low regardless of file size. This is suitable for
+    /// large files where loading everything into memory is undesirable.
+    ///
+    /// See also [with_in_memory_source()](Self::with_in_memory_source).
+    ///
+    /// # Returns
+    /// The builder with buffered source configured
+    pub fn with_buffered_source(mut self) -> Self {
+        self.read_strategy = ReadStrategy::Buffered;
+        self
+    }
+
+    /// Configure the parser to read the **entire file into memory** upfront.
+    ///
+    /// The file contents are loaded into a contiguous byte buffer before
+    /// parsing begins. This avoids repeated I/O during parsing, which can
+    /// be faster for small and moderately sized files.
+    ///
+    /// See also [with_buffered_source()](Self::with_buffered_source).
+    ///
+    /// # Returns
+    /// The builder with in-memory source configured
+    pub fn with_in_memory_source(mut self) -> Self {
+        self.read_strategy = ReadStrategy::InMemory;
+        self
+    }
+
     /// Configure the parser to use custom [TreeBuilder].
     ///
     /// Instead of using the default [CompactTreeBuilder], another
@@ -346,7 +396,7 @@ impl<B: ByteSource, T: TreeBuilder> NexusParserBuilder<B, T> {
     ///     .with_tree_builder(YourTreeBuilder::new())
     ///     .build()?;
     /// ```
-    pub fn with_tree_builder<T2: TreeBuilder>(self, tree_builder: T2) -> NexusParserBuilder<B, T2> {
+    pub fn with_tree_builder<T2: TreeBuilder>(self, tree_builder: T2) -> NexusParserBuilder<T2> {
         NexusParserBuilder {
             mode: match self.mode {
                 TreeParsingMode::Eager { .. } => TreeParsingMode::Eager { trees: Vec::new() },
@@ -354,7 +404,8 @@ impl<B: ByteSource, T: TreeBuilder> NexusParserBuilder<B, T> {
                     TreeParsingMode::Lazy { start_byte_pos }
                 }
             },
-            source: self.source,
+            path: self.path,
+            read_strategy: self.read_strategy,
             burnin: self.burnin,
             skip_first: self.skip_first,
             tree_builder,
@@ -400,22 +451,55 @@ impl<B: ByteSource, T: TreeBuilder> NexusParserBuilder<B, T> {
     ///
     /// # Ok::<(), Box<dyn std::error::Error>>(())
     /// ```
-    pub fn build(self) -> Result<NexusParser<B, T>, ParsingError> {
-        let mut nexus_parser = NexusParser {
-            mode: self.mode,
-            newick_parser: NewickParser::new(self.tree_builder),
-            byte_parser: ByteParser::new(self.source),
-            num_leaves: 0,
-            num_total_trees: 0,
-            num_trees: 0,
-            start_tree_pos: 0,
-            tree_pos: 0,
-            burnin: self.burnin,
-            skip_first: self.skip_first,
+    pub fn build(self) -> Result<NexusParser<T>, ParsingError> {
+        /// File size threshold (in bytes) for automatic read strategy.
+        /// Files smaller than this are read into memory; larger files use buffered I/O.
+        const AUTO_IN_MEMORY_THRESHOLD: u64 = 100 * 1024 * 1024; // 100 MB
+
+        let use_buffered = match self.read_strategy {
+            ReadStrategy::Buffered => true,
+            ReadStrategy::InMemory => false,
+            ReadStrategy::Automatic => {
+                let file_size = std::fs::metadata(&self.path)
+                    .map(|m| m.len())
+                    .unwrap_or(0);
+                file_size >= AUTO_IN_MEMORY_THRESHOLD
+            }
         };
 
-        nexus_parser.init()?;
-        Ok(nexus_parser)
+        if use_buffered {
+            let byte_parser = ByteParser::from_file_buffered(&self.path)?;
+            let mut inner = NexusParserInner {
+                mode: self.mode,
+                newick_parser: NewickParser::new(self.tree_builder),
+                byte_parser,
+                num_leaves: 0,
+                num_total_trees: 0,
+                num_trees: 0,
+                start_tree_pos: 0,
+                tree_pos: 0,
+                burnin: self.burnin,
+                skip_first: self.skip_first,
+            };
+            inner.init()?;
+            Ok(NexusParser::Buffered(inner))
+        } else {
+            let byte_parser = ByteParser::from_file_in_memory(&self.path)?;
+            let mut inner = NexusParserInner {
+                mode: self.mode,
+                newick_parser: NewickParser::new(self.tree_builder),
+                byte_parser,
+                num_leaves: 0,
+                num_total_trees: 0,
+                num_trees: 0,
+                start_tree_pos: 0,
+                tree_pos: 0,
+                burnin: self.burnin,
+                skip_first: self.skip_first,
+            };
+            inner.init()?;
+            Ok(NexusParser::InMemory(inner))
+        }
     }
 }
 
@@ -490,7 +574,81 @@ impl<B: ByteSource, T: TreeBuilder> NexusParserBuilder<B, T> {
 ///
 /// # Ok::<(), Box<dyn std::error::Error>>(())
 /// ```
-pub struct NexusParser<B: ByteSource, T: TreeBuilder> {
+pub enum NexusParser<T: TreeBuilder> {
+    Buffered(NexusParserInner<BufferedByteSource, T>),
+    InMemory(NexusParserInner<InMemoryByteSource, T>),
+}
+
+/// Helper macro to delegate a method call to the inner parser variant.
+macro_rules! delegate {
+    ($self:ident, $method:ident $(, $arg:expr)*) => {
+        match $self {
+            NexusParser::Buffered(inner) => inner.$method($($arg),*),
+            NexusParser::InMemory(inner) => inner.$method($($arg),*),
+        }
+    };
+}
+
+impl<T: TreeBuilder> NexusParser<T> {
+    /// Reset to first tree (respecting skip-first and burnin setting).
+    pub fn reset(&mut self) {
+        delegate!(self, reset)
+    }
+
+    /// Consumes this [NexusParser] and returns the built [LabelStorage].
+    pub fn into_label_storage(self) -> T::Storage {
+        delegate!(self, into_label_storage)
+    }
+
+    /// Consumes this [NexusParser] and returns the resulting trees
+    /// and [LabelStorage].
+    pub fn into_results(self) -> Result<(Vec<T::Tree>, T::Storage), ParsingError> {
+        delegate!(self, into_results)
+    }
+
+    /// Get the number of leaves/taxa based on TAXA block.
+    pub fn num_leaves(&self) -> usize {
+        delegate!(self, num_leaves)
+    }
+
+    /// Get ref to [LabelStorage] of all taxa based on TAXA block.
+    pub fn label_storage(&self) -> &T::Storage {
+        delegate!(self, label_storage)
+    }
+
+    /// Get the number of trees (without burnin trees).
+    pub fn num_trees(&self) -> usize {
+        delegate!(self, num_trees)
+    }
+
+    /// Get the total number of trees including skipped+burnin.
+    pub fn num_total_trees(&self) -> usize {
+        delegate!(self, num_total_trees)
+    }
+
+    /// Returns a reference to the next tree.
+    ///
+    /// Intended for **eager mode** only. In lazy mode, trees aren't stored,
+    /// so this always returns `None`.
+    pub fn next_tree_ref(&mut self) -> Option<&T::Tree> {
+        delegate!(self, next_tree_ref)
+    }
+
+    /// Parses and returns the next tree.
+    ///
+    /// Intended for **lazy mode** only. In eager mode returns `Ok(None)` as
+    /// trees are already parsed — use [next_tree_ref()](Self::next_tree_ref)
+    /// or [into_results()](Self::into_results) instead.
+    pub fn next_tree(&mut self) -> Result<Option<T::Tree>, ParsingError> {
+        delegate!(self, next_tree)
+    }
+}
+
+// =#========================================================================#=
+// NEXUS PARSER INNER
+// =#========================================================================$=
+/// Inner of [NexusParser] for type erasure pattern of generic byte source.
+struct NexusParserInner<B: ByteSource, T: TreeBuilder> {
     /// Mode to parse trees
     mode: TreeParsingMode<T>,
     /// Continuously used to parse Newick strings, including resolving labels
@@ -521,7 +679,7 @@ pub struct NexusParser<B: ByteSource, T: TreeBuilder> {
 // ============================================================================
 // Initialization & State (private)
 // ============================================================================
-impl<B: ByteSource, T: TreeBuilder> NexusParser<B, T> {
+impl<B: ByteSource, T: TreeBuilder> NexusParserInner<B, T> {
     /// Initializes this [NexusParser] to be ready to retrieve trees.
     ///
     /// Parses the header and TAXA block of the Nexus file, counts the number
@@ -650,7 +808,9 @@ impl<B: ByteSource, T: TreeBuilder> NexusParser<B, T> {
                         .values()
                         .all(|label| label_storage.check_and_ref(label).is_some());
                 if !labels_consistent {
-                    return Err(ParsingError::invalid_translate_command(&self.byte_parser));
+                    return Err(ParsingError::invalid_translate_command(
+                        &mut self.byte_parser,
+                    ));
                 }
 
                 // Check if all keys are integers to use the more efficient NexusIntegerLabels resolver
@@ -679,7 +839,7 @@ impl<B: ByteSource, T: TreeBuilder> NexusParser<B, T> {
 // ============================================================================
 // De/Construction (pub)
 // ============================================================================
-impl<B: ByteSource, T: TreeBuilder> NexusParser<B, T> {
+impl<B: ByteSource, T: TreeBuilder> NexusParserInner<B, T> {
     /// Consumes this [NexusParser] and returns the build [LabelStorage].
     ///
     /// This extracts the final underlying label storage,
@@ -722,7 +882,7 @@ impl<B: ByteSource, T: TreeBuilder> NexusParser<B, T> {
 // ============================================================================
 // Getters / Accessors, etc. (pub)
 // ============================================================================
-impl<B: ByteSource, T: TreeBuilder> NexusParser<B, T> {
+impl<B: ByteSource, T: TreeBuilder> NexusParserInner<B, T> {
     /// Get the number of leaves/taxa based on TAXA block
     pub fn num_leaves(&self) -> usize {
         self.num_leaves
@@ -791,7 +951,7 @@ impl<B: ByteSource, T: TreeBuilder> NexusParser<B, T> {
                 // Parse next tree on demand
                 let tree = self.parse_single_tree()?;
                 if tree.is_none() {
-                    return Err(ParsingError::unexpected_eof(&self.byte_parser));
+                    return Err(ParsingError::unexpected_eof(&mut self.byte_parser));
                 }
                 self.tree_pos += 1;
                 Ok(tree)
@@ -803,14 +963,14 @@ impl<B: ByteSource, T: TreeBuilder> NexusParser<B, T> {
 // ============================================================================
 // Parsing helpers (private)
 // ============================================================================
-impl<B: ByteSource, T: TreeBuilder> NexusParser<B, T> {
+impl<B: ByteSource, T: TreeBuilder> NexusParserInner<B, T> {
     /// Parses header `#NEXUS` at start of file;
     /// returns [`ParsingError::MissingNexusHeader`] if header missing.
     fn parse_nexus_header(&mut self) -> Result<(), ParsingError> {
         self.byte_parser.skip_comment_and_whitespace()?;
 
         if !self.byte_parser.consume_if_sequence(NEXUS_HEADER) {
-            return Err(ParsingError::missing_nexus_header(&self.byte_parser));
+            return Err(ParsingError::missing_nexus_header(&mut self.byte_parser));
         }
 
         Ok(())
@@ -822,7 +982,7 @@ impl<B: ByteSource, T: TreeBuilder> NexusParser<B, T> {
     fn skip_until_block(&mut self, target: NexusBlock) -> Result<(), ParsingError> {
         loop {
             if self.byte_parser.is_eof() {
-                return Err(ParsingError::unexpected_eof(&self.byte_parser));
+                return Err(ParsingError::unexpected_eof(&mut self.byte_parser));
             }
 
             let block_type = self.detect_next_block()?;
@@ -842,18 +1002,11 @@ impl<B: ByteSource, T: TreeBuilder> NexusParser<B, T> {
         self.byte_parser.skip_comment_and_whitespace()?;
 
         if !self.byte_parser.consume_if_sequence(BLOCK_BEGIN) {
-            return Err(ParsingError::invalid_formatting(&self.byte_parser));
+            return Err(ParsingError::invalid_formatting(&mut self.byte_parser));
         }
         self.byte_parser.skip_comment_and_whitespace()?;
 
-        let start_pos = self.byte_parser.position();
-        if !self.byte_parser.consume_until(b';', Exclusive) {
-            return Err(ParsingError::unexpected_eof(&self.byte_parser));
-        }
-
-        let block_name = std::str::from_utf8(self.byte_parser.slice_from(start_pos))
-            .map_err(|_| ParsingError::invalid_block_name(&self.byte_parser))?
-            .to_string();
+        let block_name = self.byte_parser.parse_unquoted_label(b";")?;
 
         self.byte_parser.next_byte(); // consume the ';' now (already know that this is next byte)
 
@@ -866,7 +1019,7 @@ impl<B: ByteSource, T: TreeBuilder> NexusParser<B, T> {
             .byte_parser
             .consume_until_sequence(BLOCK_END, Inclusive)
         {
-            return Err(ParsingError::unexpected_eof(&self.byte_parser));
+            return Err(ParsingError::unexpected_eof(&mut self.byte_parser));
         }
 
         Ok(())
@@ -913,7 +1066,7 @@ impl<B: ByteSource, T: TreeBuilder> NexusParser<B, T> {
         self.byte_parser.skip_comment_and_whitespace()?;
         if !self.byte_parser.consume_if_sequence(DIMENSIONS) {
             return Err(ParsingError::invalid_taxa_block(
-                &self.byte_parser,
+                &mut self.byte_parser,
                 String::from("Expected 'DIMENSIONS' in TAXA block."),
             ));
         }
@@ -921,7 +1074,7 @@ impl<B: ByteSource, T: TreeBuilder> NexusParser<B, T> {
         self.byte_parser.skip_whitespace();
         if !self.byte_parser.consume_if_sequence(NTAX) {
             return Err(ParsingError::invalid_taxa_block(
-                &self.byte_parser,
+                &mut self.byte_parser,
                 String::from("Expected 'NTAX' in TAXA block."),
             ));
         }
@@ -929,28 +1082,17 @@ impl<B: ByteSource, T: TreeBuilder> NexusParser<B, T> {
         self.byte_parser.skip_whitespace();
         if !self.byte_parser.consume_if(b'=') {
             return Err(ParsingError::invalid_taxa_block(
-                &self.byte_parser,
+                &mut self.byte_parser,
                 String::from("Expected '=' in TAXA block."),
             ));
         }
 
         // b) Read the number `n` and consume ";"
         self.byte_parser.skip_whitespace();
-        let start_pos = self.byte_parser.position();
-        if !self.byte_parser.consume_until(b';', Exclusive) {
-            return Err(ParsingError::unexpected_eof(&self.byte_parser));
-        }
-        let ntax_str = std::str::from_utf8(self.byte_parser.slice_from(start_pos))
-            .map_err(|_| {
-                ParsingError::invalid_taxa_block(
-                    &self.byte_parser,
-                    String::from("Invalid UTF-8 in ntax value"),
-                )
-            })?
-            .trim();
+        let ntax_str = self.byte_parser.parse_unquoted_label(b";")?;
         let ntax: usize = ntax_str.parse().map_err(|_| {
             ParsingError::invalid_taxa_block(
-                &self.byte_parser,
+                &mut self.byte_parser,
                 format!("Cannot parse `ntax` value: {}", ntax_str),
             )
         })?;
@@ -967,7 +1109,7 @@ impl<B: ByteSource, T: TreeBuilder> NexusParser<B, T> {
         self.byte_parser.skip_comment_and_whitespace()?;
         if !self.byte_parser.consume_if_sequence(TAXLABELS) {
             return Err(ParsingError::invalid_taxa_block(
-                &self.byte_parser,
+                &mut self.byte_parser,
                 String::from("Expected 'TAXLABELS' in TAXA block."),
             ));
         }
@@ -996,7 +1138,7 @@ impl<B: ByteSource, T: TreeBuilder> NexusParser<B, T> {
         // c) Check that `num_taxa` many labels parsed
         if count != self.num_leaves {
             return Err(ParsingError::invalid_taxa_block(
-                &self.byte_parser,
+                &mut self.byte_parser,
                 format!(
                     "Number of parsed labels ({}) did not match ntax value ({}).",
                     count, self.num_leaves
@@ -1025,7 +1167,7 @@ impl<B: ByteSource, T: TreeBuilder> NexusParser<B, T> {
                 Ok(None)
             } else {
                 Err(ParsingError::invalid_taxa_block(
-                    &self.byte_parser,
+                    &mut self.byte_parser,
                     String::from("Expected 'TRANSLATE' or first 'TREE' in TREES block."),
                 ))
             };
@@ -1042,7 +1184,7 @@ impl<B: ByteSource, T: TreeBuilder> NexusParser<B, T> {
             // Expect a space
             if !self.byte_parser.consume_if(b' ') {
                 return Err(ParsingError::invalid_trees_block(
-                    &self.byte_parser,
+                    &mut self.byte_parser,
                     String::from("Expected ' ' in between key and label."),
                 ));
             }
@@ -1065,7 +1207,7 @@ impl<B: ByteSource, T: TreeBuilder> NexusParser<B, T> {
             // and otherwise invalid
             let char = self.byte_parser.peek().unwrap().to_string();
             return Err(ParsingError::invalid_trees_block(
-                &self.byte_parser,
+                &mut self.byte_parser,
                 format!("Unexpected char '{char}' in TRANSLATE."),
             ));
         }
@@ -1098,7 +1240,7 @@ impl<B: ByteSource, T: TreeBuilder> NexusParser<B, T> {
             // Expect "TREE"
             if !self.byte_parser.consume_if_sequence(b"tree") {
                 return Err(ParsingError::invalid_trees_block(
-                    &self.byte_parser,
+                    &mut self.byte_parser,
                     String::from("Expected 'tree' in tree block."),
                 ));
             }
@@ -1110,7 +1252,7 @@ impl<B: ByteSource, T: TreeBuilder> NexusParser<B, T> {
             self.byte_parser.skip_whitespace();
             if !self.byte_parser.consume_if(b'=') {
                 return Err(ParsingError::invalid_trees_block(
-                    &self.byte_parser,
+                    &mut self.byte_parser,
                     String::from("Expected '=' in tree block. "),
                 ));
             }
@@ -1158,7 +1300,7 @@ impl<B: ByteSource, T: TreeBuilder> NexusParser<B, T> {
         // Expect "TREE"
         if !self.byte_parser.consume_if_sequence(TREE) {
             return Err(ParsingError::invalid_trees_block(
-                &self.byte_parser,
+                &mut self.byte_parser,
                 String::from("Expected 'TREE' in tree command."),
             ));
         }
@@ -1170,7 +1312,7 @@ impl<B: ByteSource, T: TreeBuilder> NexusParser<B, T> {
         self.byte_parser.skip_whitespace();
         if !self.byte_parser.consume_if(b'=') {
             return Err(ParsingError::invalid_trees_block(
-                &self.byte_parser,
+                &mut self.byte_parser,
                 String::from("Expected '=' after tree name in tree command."),
             ));
         }
@@ -1206,7 +1348,7 @@ impl<B: ByteSource, T: TreeBuilder> NexusParser<B, T> {
         // Expect "TREE"
         if !self.byte_parser.consume_if_sequence(TREE) {
             return Err(ParsingError::invalid_trees_block(
-                &self.byte_parser,
+                &mut self.byte_parser,
                 String::from("Expected 'tree' in tree command."),
             ));
         }
@@ -1214,7 +1356,7 @@ impl<B: ByteSource, T: TreeBuilder> NexusParser<B, T> {
         // Skip tree name (consume until '=')
         if !self.byte_parser.consume_until(b'=', Exclusive) {
             return Err(ParsingError::invalid_trees_block(
-                &self.byte_parser,
+                &mut self.byte_parser,
                 String::from("Expected '=' in tree command."),
             ));
         }
@@ -1225,7 +1367,7 @@ impl<B: ByteSource, T: TreeBuilder> NexusParser<B, T> {
 
         // Skip the Newick string (everything until and including semicolon)
         if !self.byte_parser.consume_until(b';', Inclusive) {
-            return Err(ParsingError::unexpected_eof(&self.byte_parser));
+            return Err(ParsingError::unexpected_eof(&mut self.byte_parser));
         }
 
         Ok(true)

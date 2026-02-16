@@ -72,7 +72,7 @@ pub struct ParsingError {
 
 impl ParsingError {
     /// Create a [ParsingError] from an error type and parser state
-    pub fn from_parser<S: ByteSource>(kind: ParsingErrorType, parser: &ByteParser<S>) -> Self {
+    pub fn from_parser<S: ByteSource>(kind: ParsingErrorType, parser: &mut ByteParser<S>) -> Self {
         Self {
             kind,
             position: parser.position(),
@@ -90,52 +90,52 @@ impl ParsingError {
     }
 
     /// Convenience constructor for [ParsingErrorType::UnexpectedEOF]
-    pub fn unexpected_eof<S: ByteSource>(parser: &ByteParser<S>) -> Self {
+    pub fn unexpected_eof<S: ByteSource>(parser: &mut ByteParser<S>) -> Self {
         Self::from_parser(ParsingErrorType::UnexpectedEOF, parser)
     }
 
     /// Convenience constructor for [ParsingErrorType::MissingNexusHeader]
-    pub fn missing_nexus_header<S: ByteSource>(parser: &ByteParser<S>) -> Self {
+    pub fn missing_nexus_header<S: ByteSource>(parser: &mut ByteParser<S>) -> Self {
         Self::from_parser(ParsingErrorType::MissingNexusHeader, parser)
     }
 
     /// Convenience constructor for [ParsingErrorType::InvalidBlockName]
-    pub fn invalid_block_name<S: ByteSource>(parser: &ByteParser<S>) -> Self {
+    pub fn invalid_block_name<S: ByteSource>(parser: &mut ByteParser<S>) -> Self {
         Self::from_parser(ParsingErrorType::InvalidBlockName, parser)
     }
 
     /// Convenience constructor for [ParsingErrorType::InvalidTaxaBlock]
-    pub fn invalid_taxa_block<S: ByteSource>(parser: &ByteParser<S>, msg: String) -> Self {
+    pub fn invalid_taxa_block<S: ByteSource>(parser: &mut ByteParser<S>, msg: String) -> Self {
         Self::from_parser(ParsingErrorType::InvalidTaxaBlock(msg), parser)
     }
 
     /// Convenience constructor for [ParsingErrorType::InvalidTreesBlock]
-    pub fn invalid_trees_block<S: ByteSource>(parser: &ByteParser<S>, msg: String) -> Self {
+    pub fn invalid_trees_block<S: ByteSource>(parser: &mut ByteParser<S>, msg: String) -> Self {
         Self::from_parser(ParsingErrorType::InvalidTreesBlock(msg), parser)
     }
 
     /// Convenience constructor for [ParsingErrorType::InvalidTranslateCommand]
-    pub fn invalid_translate_command<S: ByteSource>(parser: &ByteParser<S>) -> Self {
+    pub fn invalid_translate_command<S: ByteSource>(parser: &mut ByteParser<S>) -> Self {
         Self::from_parser(ParsingErrorType::InvalidTranslateCommand, parser)
     }
 
     /// Convenience constructor for [ParsingErrorType::UnclosedComment]
-    pub fn unclosed_comment<S: ByteSource>(parser: &ByteParser<S>) -> Self {
+    pub fn unclosed_comment<S: ByteSource>(parser: &mut ByteParser<S>) -> Self {
         Self::from_parser(ParsingErrorType::UnclosedComment, parser)
     }
 
     /// Convenience constructor for [ParsingErrorType::InvalidNewickString]
-    pub fn invalid_newick_string<S: ByteSource>(parser: &ByteParser<S>, msg: String) -> Self {
+    pub fn invalid_newick_string<S: ByteSource>(parser: &mut ByteParser<S>, msg: String) -> Self {
         Self::from_parser(ParsingErrorType::InvalidNewickString(msg), parser)
     }
 
     /// Convenience constructor for [ParsingErrorType::InvalidFormatting]
-    pub fn invalid_formatting<S: ByteSource>(parser: &ByteParser<S>) -> Self {
+    pub fn invalid_formatting<S: ByteSource>(parser: &mut ByteParser<S>) -> Self {
         Self::from_parser(ParsingErrorType::InvalidFormatting, parser)
     }
 
     /// Convenience constructor for [ParsingErrorType::UnresolvedLabel]
-    pub fn unresolved_label<S: ByteSource>(parser: &ByteParser<S>, msg: String) -> Self {
+    pub fn unresolved_label<S: ByteSource>(parser: &mut ByteParser<S>, msg: String) -> Self {
         Self::from_parser(ParsingErrorType::UnresolvedLabel(msg), parser)
     }
 

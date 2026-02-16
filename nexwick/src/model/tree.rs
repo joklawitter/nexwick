@@ -409,8 +409,8 @@ impl<L: ValidLabel> GenTree<L> {
                 }
 
                 // Check children point back to this vertex as parent
-                let left_parent = self.vertices[left].parent_index();
-                let right_parent = self.vertices[right].parent_index();
+                let left_parent = self.vertices[left].parent();
+                let right_parent = self.vertices[right].parent();
 
                 if left_parent != Some(index) || right_parent != Some(index) {
                     return false;
@@ -425,7 +425,7 @@ impl<L: ValidLabel> GenTree<L> {
                 }
             } else {
                 // Non-root must have valid parent
-                match vertex.parent_index() {
+                match vertex.parent() {
                     None => return false, // Non-root without parent
                     Some(parent_index) => {
                         // Check parent index is in bounds

@@ -4,13 +4,59 @@
 //! support for peeking, consuming, pattern matching, and quote-aware label
 //! parser. Used as the foundation for both NEXUS and Newick parsers.
 
+use crate::parser::buffered_byte_source::BufferedByteSource;
 use crate::parser::byte_parser::ConsumeMode::Inclusive;
-use crate::parser::byte_source::{ByteSource, InMemoryByteSource};
+use crate::parser::byte_source::ByteSource;
+use crate::parser::in_memory_byte_source::InMemoryByteSource;
 use crate::parser::parsing_error::ParsingError;
+use std::path::Path;
+
+// =#========================================================================#=
+// CONSUME MODE (for ByteParser)
+// =#========================================================================€=
+/// Specifies whether to consume or leave the target
+/// when using `consume_until` methods.
+///
+/// This enum controls the behavior of various `consume_until` methods in
+/// `ByteParser`, determining whether the target byte/sequence should be
+/// consumed along with everything before it, or whether the parser should stop
+/// just before the target.
+///
+/// # Examples
+/// ```
+/// use nexwick::parser::byte_parser::{ByteParser, ConsumeMode};
+///
+/// let mut parser = ByteParser::for_str("TREE t1=((A:0.5,B:0.5):0.3,C:0.8):0.0");
+///
+/// // Inclusive: consume up to and including '=', e.g. to start of Newick string
+/// parser.consume_until(b'=', ConsumeMode::Inclusive);
+/// assert_eq!(parser.peek(), Some(b'(')); // positioned after '='
+///
+/// let mut parser = ByteParser::for_str("('Wilson''s_Storm-petrel')");
+///
+/// // Exclusive: consume up to but not including "'", e.g. quoted comment start
+/// parser.consume_until(b'\'', ConsumeMode::Exclusive);
+/// assert_eq!(parser.peek(), Some(b'\'')); // positioned at '\''
+/// ```
+#[derive(Debug, Copy, Clone, PartialEq)]
+pub enum ConsumeMode {
+    /// Consume the target byte/sequence along with everything before it.
+    ///
+    /// When using `Inclusive` mode, the parser position will be advanced past the target.
+    Inclusive,
+
+    /// Stop before the target byte/sequence without consuming it.
+    ///
+    /// When using `Exclusive` mode, the parser position will be at the target.
+    Exclusive,
+}
+
+#[cfg(test)]
+mod tests {}
 
 // =#========================================================================#=
 // BYTE PARSER
-// =#========================================================================#=
+// =#========================================================================$=
 /// A byte-by-byte parser for ASCII text with support for peeking, consuming,
 /// and pattern matching.
 ///
@@ -64,6 +110,18 @@ impl ByteParser<InMemoryByteSource> {
     pub fn for_str(input: &str) -> Self {
         Self::new(InMemoryByteSource::from_vec(input.as_bytes().to_vec()))
     }
+
+    pub fn from_file_in_memory<P: AsRef<Path>>(path: P) -> std::io::Result<Self> {
+        let source = InMemoryByteSource::from_file(path)?;
+        Ok(Self::new(source))
+    }
+}
+
+impl ByteParser<BufferedByteSource> {
+    pub fn from_file_buffered<P: AsRef<Path>>(path: P) -> std::io::Result<Self> {
+        let source = BufferedByteSource::from_file(path)?;
+        Ok(Self::new(source))
+    }
 }
 
 impl<S: ByteSource> ByteParser<S> {
@@ -81,7 +139,7 @@ impl<S: ByteSource> ByteParser<S> {
     /// * `Some(u8)` - The current byte if available
     /// * `None` - If at end of data (EOF)
     #[inline(always)]
-    pub fn peek(&self) -> Option<u8> {
+    pub fn peek(&mut self) -> Option<u8> {
         self.source.peek()
     }
 
@@ -154,7 +212,7 @@ impl<S: ByteSource> ByteParser<S> {
     ///
     /// # Returns
     /// `true` if the current byte matches `ch` in any case, `false` otherwise
-    pub fn peek_is(&self, ch: u8) -> bool {
+    pub fn peek_is(&mut self, ch: u8) -> bool {
         self.peek() == Some(ch)
             || self.peek() == Some(ch.to_ascii_lowercase())
             || self.peek() == Some(ch.to_ascii_uppercase())
@@ -169,7 +227,7 @@ impl<S: ByteSource> ByteParser<S> {
     ///
     /// # Returns
     /// `true` if the next bytes match `word` (case-insensitive), `false` otherwise
-    pub fn peek_is_word(&self, word: &str) -> bool {
+    pub fn peek_is_word(&mut self, word: &str) -> bool {
         self.peek_is_sequence(word.as_bytes())
     }
 
@@ -183,8 +241,7 @@ impl<S: ByteSource> ByteParser<S> {
     /// # Returns
     /// `true` if the next bytes match `sequence` (case-insensitive), `false` otherwise
     #[inline]
-    pub fn peek_is_sequence(&self, sequence: &[u8]) -> bool {
-        // Get slice without allocating
+    pub fn peek_is_sequence(&mut self, sequence: &[u8]) -> bool {
         let context = self.source.peek_slice(sequence.len());
 
         if context.len() < sequence.len() {
@@ -342,7 +399,7 @@ impl<S: ByteSource> ByteParser<S> {
     ///
     /// # Returns
     /// `true` if at or beyond the end of data, `false` otherwise
-    pub fn is_eof(&self) -> bool {
+    pub fn is_eof(&mut self) -> bool {
         self.source.is_eof()
     }
 
@@ -364,17 +421,6 @@ impl<S: ByteSource> ByteParser<S> {
         self.source.set_position(pos);
     }
 
-    /// Returns a slice of the input from a start position to the current position.
-    ///
-    /// # Arguments
-    /// * `start` - The starting byte offset
-    ///
-    /// # Returns
-    /// A byte slice from `start` to the current position, or empty slice if not available
-    pub fn slice_from(&self, start: usize) -> &[u8] {
-        self.source.slice_from(start).unwrap_or(&[])
-    }
-
     /// Returns up to `k` bytes from the current position for error context.
     ///
     /// # Arguments
@@ -382,7 +428,7 @@ impl<S: ByteSource> ByteParser<S> {
     ///
     /// # Returns
     /// A vector containing up to `k` bytes (or fewer if EOF reached)
-    pub fn get_context(&self, k: usize) -> Vec<u8> {
+    pub fn get_context(&mut self, k: usize) -> Vec<u8> {
         self.source.get_context(k)
     }
 
@@ -395,7 +441,7 @@ impl<S: ByteSource> ByteParser<S> {
     ///
     /// # Returns
     /// A string containing up to `k` bytes (or fewer if EOF reached)
-    pub fn get_context_as_string(&self, k: usize) -> String {
+    pub fn get_context_as_string(&mut self, k: usize) -> String {
         let context_bytes = &self.get_context(k);
         String::from_utf8_lossy(context_bytes).chars().collect()
     }
@@ -480,41 +526,3 @@ impl<S: ByteSource> ByteParser<S> {
         Ok(label)
     }
 }
-
-/// Specifies whether to consume or leave the target when using `consume_until` methods.
-///
-/// This enum controls the behavior of various `consume_until` methods in `ByteParser`,
-/// determining whether the target byte/sequence should be consumed along with everything
-/// before it, or whether the parser should stop just before the target.
-///
-/// # Examples
-/// ```
-/// use nexwick::parser::byte_parser::{ByteParser, ConsumeMode};
-///
-/// let mut parser = ByteParser::for_str("TREE t1=((A:0.5,B:0.5):0.3,C:0.8):0.0");
-///
-/// // Inclusive: consume up to and including '=', e.g. to start of Newick string
-/// parser.consume_until(b'=', ConsumeMode::Inclusive);
-/// assert_eq!(parser.peek(), Some(b'(')); // positioned after '='
-///
-/// let mut parser = ByteParser::for_str("('Wilson''s_Storm-petrel')");
-///
-/// // Exclusive: consume up to but not including "'", e.g. quoted comment start
-/// parser.consume_until(b'\'', ConsumeMode::Exclusive);
-/// assert_eq!(parser.peek(), Some(b'\'')); // positioned at '\''
-/// ```
-#[derive(Debug, Copy, Clone, PartialEq)]
-pub enum ConsumeMode {
-    /// Consume the target byte/sequence along with everything before it.
-    ///
-    /// When using `Inclusive` mode, the parser position will be advanced past the target.
-    Inclusive,
-
-    /// Stop before the target byte/sequence without consuming it.
-    ///
-    /// When using `Exclusive` mode, the parser position will be at the target.
-    Exclusive,
-}
-
-#[cfg(test)]
-mod tests {}

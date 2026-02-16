@@ -55,9 +55,6 @@ pub use writer::{NewickStyle, to_newick, write_newick_file};
 use crate::model::{CompactTree, LeafLabelMap, SimpleTree};
 use crate::parser::ParsingError;
 use crate::parser::byte_parser::ByteParser;
-use crate::parser::byte_source::InMemoryByteSource;
-use std::fs::File;
-use std::io::Read;
 use std::path::Path;
 
 // ============================================================================
@@ -96,11 +93,7 @@ pub fn parse_file<P: AsRef<Path>>(
     path: P,
 ) -> Result<(Vec<CompactTree>, LeafLabelMap), ParsingError> {
     // Set up byte parser
-    let mut contents = Vec::new();
-    let mut file = File::open(path)?;
-    file.read_to_end(&mut contents)?;
-    let source = InMemoryByteSource::from_vec(contents);
-    let byte_parser = ByteParser::new(source);
+    let byte_parser = ByteParser::from_file_buffered(path)?;
 
     // Parse all trees
     let mut newick_parser = NewickParser::new_compact_defaults();

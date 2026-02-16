@@ -207,7 +207,7 @@ impl<L> Vertex<L> {
     /// Returns the index of parent if this a non-root vertex, else `None`.
     ///
     /// Note that parent might not be set yet during construction.
-    pub fn parent_index(&self) -> Option<usize> {
+    pub fn parent(&self) -> Option<usize> {
         match self {
             Vertex::Internal { parent, .. } | Vertex::Leaf { parent, .. } => {
                 if *parent == NO_PARENT_SET {

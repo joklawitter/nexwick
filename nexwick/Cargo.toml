@@ -1,0 +1,21 @@
+[package]
+name = "nexwick"
+version = "0.1.0"
+authors = ["Jonathan Klawitter"]
+edition = "2024"
+license = "MIT OR Apache-2.0"
+description = "Parser for Nexus files and Newick strings"
+homepage = "https://github.com/joklawitter/nexwick/"
+repository = "https://github.com/joklawitter/nexwick/"
+keywords = ["parser", "Nexus", "Newick", "Phylogenetic"]
+categories = ["parser-implementations", "science::bioinformatics"]
+exclude = ["examples/", "target/", "src/main.rs", "claude.md", ".*"]
+
+[dependencies]
+
+[dev-dependencies]
+criterion = { version = "0.8.2", features = ["html_reports"] }
+
+[[bench]]
+name = "benchmark"
+harness = false
