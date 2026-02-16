@@ -95,7 +95,7 @@ pub struct ByteParser<S: ByteSource> {
 }
 
 impl ByteParser<InMemoryByteSource> {
-    /// Creates a new `ByteParser` from a byte slice by copying it into a Vec.
+    /// Creates a new [ByteParser] from a byte slice by copying it into a Vec.
     ///
     /// # Arguments
     /// * `input` - The byte slice to parse
@@ -103,7 +103,7 @@ impl ByteParser<InMemoryByteSource> {
         Self::new(InMemoryByteSource::from_vec(input.to_vec()))
     }
 
-    /// Creates a new `ByteParser` from a String by copying it into a Vec.
+    /// Creates a new `[ByteParser] from a String by copying it into a Vec.
     ///
     /// # Arguments
     /// * `input` - The string to parse
@@ -111,6 +111,10 @@ impl ByteParser<InMemoryByteSource> {
         Self::new(InMemoryByteSource::from_vec(input.as_bytes().to_vec()))
     }
 
+    /// Creates a new [ByteParser] from a file fully loaded into memory.
+    ///
+    /// # Arguments
+    /// * `path` - Path to the file (accepting `&str`, `String`, `Path`, or `PathBuf`)
     pub fn from_file_in_memory<P: AsRef<Path>>(path: P) -> std::io::Result<Self> {
         let source = InMemoryByteSource::from_file(path)?;
         Ok(Self::new(source))
@@ -118,6 +122,10 @@ impl ByteParser<InMemoryByteSource> {
 }
 
 impl ByteParser<BufferedByteSource> {
+    /// Creates a new [ByteParser] from a file read with a buffer.
+    ///
+    /// # Arguments
+    /// * `path` - Path to the file (accepting `&str`, `String`, `Path`, or `PathBuf`)
     pub fn from_file_buffered<P: AsRef<Path>>(path: P) -> std::io::Result<Self> {
         let source = BufferedByteSource::from_file(path)?;
         Ok(Self::new(source))
@@ -510,19 +518,19 @@ impl<S: ByteSource> ByteParser<S> {
     /// The parsed label string
     ///
     /// # Errors
-    /// Currently does not return errors, but returns `Result` for API consistency
+    /// Return an error if it reaches the end of the file instead of a delimiter
     pub fn parse_unquoted_label(&mut self, delimiters: &[u8]) -> Result<String, ParsingError> {
         let mut label = String::new();
 
         while let Some(b) = self.peek() {
             // Stop at any delimiter
             if delimiters.contains(&b) {
-                break;
+                return Ok(label);
             }
             label.push(b as char);
             self.next_byte();
         }
 
-        Ok(label)
+        Err(ParsingError::unexpected_eof(self))
     }
 }

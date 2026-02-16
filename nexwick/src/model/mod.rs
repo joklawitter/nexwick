@@ -31,6 +31,7 @@
 //!
 //! See the [tree_builder] module docs for details on this flow.
 
+pub mod annotation;
 pub mod compact_tree_builder;
 pub mod label_resolver;
 pub mod label_storage;

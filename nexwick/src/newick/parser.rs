@@ -4,6 +4,7 @@
 //! to parse files or single strings, as well as lazy parsing via a
 //! [NewickIterator].
 
+use crate::model::annotation::AnnotationValue;
 use crate::model::simple_tree_builder::{SimpleLabelStorage, SimpleTreeBuilder};
 use crate::model::tree_builder::TreeBuilder;
 use crate::model::{CompactTreeBuilder, LabelResolver, LeafLabelMap};
@@ -11,6 +12,7 @@ use crate::newick::defs::{DEFAULT_NUM_LEAVES_GUESS, NEWICK_LABEL_DELIMITERS};
 use crate::parser::byte_parser::ByteParser;
 use crate::parser::byte_source::ByteSource;
 use crate::parser::parsing_error::ParsingError;
+use std::collections::HashMap;
 
 // =#========================================================================#=
 // NEWICK PARSER
@@ -33,13 +35,12 @@ use crate::parser::parsing_error::ParsingError;
 ///       verbatim label resolution.
 ///
 /// # Configuration
-/// * `with_num_leaves(num_leaves)`
+/// * [`with_num_leaves(num_leaves)`](Self::with_num_leaves)
 ///     - Can be configured with number of leaves in trees to parse,
 ///       otherwise it is inferred from the first parsed tree and then stored.
-/// * Plan to include in the future `with_annotations()`, so that it can be configured
-///   to parse vertex annotation instead of considering them comments,
-///   (e.g. extract `pop_size` and value from "A[&pop_size=0.123]").
-///   For now, annotation remains unsupported.
+/// * [`with_annotations()`](Self::with_annotations)
+///     - Configures the parser to parse vertex annotations
+///       (e.g. `[&rate=0.5,pop_size=1.2]`) instead of treating them as comments.
 ///
 /// # Parsing
 /// * [`parse_str`](Self::parse_str) — Parse single tree
@@ -63,6 +64,7 @@ pub struct NewickParser<T: TreeBuilder> {
     num_leaves: usize,
     tree_builder: T,
     resolver: LabelResolver<T::Storage>,
+    parse_annotations: bool,
 }
 
 // ============================================================================
@@ -79,6 +81,7 @@ impl<T: TreeBuilder> NewickParser<T> {
             num_leaves: DEFAULT_NUM_LEAVES_GUESS,
             tree_builder,
             resolver,
+            parse_annotations: false,
         }
     }
 
@@ -120,6 +123,18 @@ impl<T: TreeBuilder> NewickParser<T> {
         self
     }
 
+    /// Configures the parser to parse vertex annotations.
+    pub fn with_annotations(mut self) -> Self {
+        self.parse_annotations = true;
+        self
+    }
+
+    /// Configures the parser whether or not to parse vertex annotations.
+    pub(crate) fn set_parse_annotations(&mut self, parse_annotations: bool) -> &mut Self {
+        self.parse_annotations = parse_annotations;
+        self
+    }
+
     /// Consumes the parser and returns the tree builder and resolver.
     pub fn into_parts(self) -> (T, LabelResolver<T::Storage>) {
         (self.tree_builder, self.resolver)
@@ -153,6 +168,7 @@ impl NewickParser<CompactTreeBuilder> {
             num_leaves: DEFAULT_NUM_LEAVES_GUESS,
             tree_builder: CompactTreeBuilder::new(),
             resolver: LabelResolver::VerbatimLabels(LeafLabelMap::new(DEFAULT_NUM_LEAVES_GUESS)),
+            parse_annotations: false,
         }
     }
 }
@@ -176,6 +192,7 @@ impl NewickParser<SimpleTreeBuilder> {
             num_leaves: DEFAULT_NUM_LEAVES_GUESS,
             tree_builder: SimpleTreeBuilder::new(),
             resolver: LabelResolver::VerbatimLabels(storage),
+            parse_annotations: false,
         }
     }
 }
@@ -298,6 +315,12 @@ impl<T: TreeBuilder> NewickParser<T> {
 
         let (left_index, right_index) = self.parse_children(parser)?;
 
+        let annotations = if self.parse_annotations {
+            self.parse_annotations(parser)?
+        } else {
+            None
+        };
+
         // Root may have an optional branch length (might be None)
         let branch_length = self.parse_branch_length(parser)?;
 
@@ -311,8 +334,11 @@ impl<T: TreeBuilder> NewickParser<T> {
             ));
         }
 
-        self.tree_builder
+        let root_index = self
+            .tree_builder
             .add_root((left_index, right_index), branch_length);
+
+        self.add_annotations(annotations, root_index);
 
         Ok(())
     }
@@ -348,11 +374,18 @@ impl<T: TreeBuilder> NewickParser<T> {
         parser: &mut ByteParser<B>,
     ) -> Result<T::VertexIdx, ParsingError> {
         let (left_index, right_index) = self.parse_children(parser)?;
-        // Annotation parser will be added here.
+        let annotations = if self.parse_annotations {
+            self.parse_annotations(parser)?
+        } else {
+            None
+        };
         let branch_length = self.parse_branch_length(parser)?;
         let index = self
             .tree_builder
             .add_internal((left_index, right_index), branch_length);
+
+        self.add_annotations(annotations, index);
+
         Ok(index)
     }
 
@@ -420,13 +453,21 @@ impl<T: TreeBuilder> NewickParser<T> {
             .resolver
             .resolve_label(&label)
             .map_err(|e| ParsingError::unresolved_label(parser, e.to_string()))?;
-        // Annotation parser will be added here.
+        let annotations = if self.parse_annotations {
+            self.parse_annotations(parser)?
+        } else {
+            None
+        };
         let branch_length = self.parse_branch_length(parser)?;
         if !self.know_num_leaves {
             self.num_leaves += 1;
         }
 
-        Ok(self.tree_builder.add_leaf(branch_length, label_ref))
+        let leaf_index = self.tree_builder.add_leaf(branch_length, label_ref);
+
+        self.add_annotations(annotations, leaf_index);
+
+        Ok(leaf_index)
     }
 
     /// Parses optional branch length `[:number]`:
@@ -468,6 +509,90 @@ impl<T: TreeBuilder> NewickParser<T> {
             )
         })?;
         Ok(Some(value))
+    }
+
+    /// Parses an annotation block `[&key=value,...]` if present.
+    ///
+    /// Returns [None] if the current position is not `[&`.
+    /// Note that `[` without `&` is a regular comment, not an annotation.
+    ///
+    /// # Returns
+    /// * `Ok(Some(HashMap))` - Parsed key-value pairs
+    /// * `Ok(None)` - No annotation block at current position
+    /// * `Err(ParsingError)` - If annotation block is malformed
+    fn parse_annotations<B: ByteSource>(
+        &mut self,
+        parser: &mut ByteParser<B>,
+    ) -> Result<Option<HashMap<String, AnnotationValue>>, ParsingError> {
+        // Parse '[&'
+        if !parser.consume_if_sequence(b"[&") {
+            return Ok(None);
+        }
+
+        let mut annotations = HashMap::new();
+
+        loop {
+            // Parse key (until '=')
+            let key = parser.parse_unquoted_label(b"=")?;
+            if key.is_empty() {
+                return Err(ParsingError::invalid_newick_string(
+                    parser,
+                    "Empty annotation key".to_string(),
+                ));
+            }
+
+            parser.next_byte(); // consume '='
+
+            // Parse value (until ',' or ']')
+            let value_str = parser.parse_unquoted_label(b",]")?;
+            if value_str.is_empty() {
+                return Err(ParsingError::invalid_newick_string(
+                    parser,
+                    format!("Empty annotation value for key '{}'", key),
+                ));
+            }
+            let value = if let Ok(v) = value_str.parse::<i64>() {
+                AnnotationValue::Int(v)
+            } else if let Ok(v) = value_str.parse::<f64>() {
+                AnnotationValue::Float(v)
+            } else {
+                AnnotationValue::String(value_str)
+            };
+
+            annotations.insert(key, value);
+
+            // ',' means more pairs, ']' means end
+            if parser.consume_if(b',') {
+                continue;
+            } else {
+                break;
+            }
+        }
+
+        // Parse ']'
+        if !parser.consume_if(b']') {
+            return Err(ParsingError::invalid_newick_string(
+                parser,
+                "Expected ']' at end of annotation block".to_string(),
+            ));
+        }
+
+        Ok(Some(annotations))
+    }
+
+    /// If annotations were parsed, they are added to passed onward to the
+    /// [TreeBuilder] to handle.
+    fn add_annotations(
+        &mut self,
+        annotations: Option<HashMap<String, AnnotationValue>>,
+        vertex_index: <T as TreeBuilder>::VertexIdx,
+    ) {
+        if let Some(annots) = annotations {
+            for (key, value) in annots.iter() {
+                self.tree_builder
+                    .add_annotation(key.clone(), vertex_index, value.clone());
+            }
+        }
     }
 }
 

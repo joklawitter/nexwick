@@ -1,3 +1,4 @@
+use nexwick::model::annotation::AnnotationValue;
 use nexwick::newick::{NewickParser, parse_file};
 use nexwick::parser::byte_parser::ByteParser;
 use std::path::Path;
@@ -214,4 +215,119 @@ fn test_parsing_newick_file() {
         assert_eq!(tree.num_leaves(), 10);
         assert!(tree.is_valid());
     }
+}
+
+// --- TESTS ANNOTATION PARSING ---
+
+#[test]
+fn test_annotations_on_leaves() {
+    let newick = "((A[&rate=0.5]:1.0,B[&rate=0.8]:2.0):3.0,C[&rate=1.2]:4.0);";
+    let mut parser = ByteParser::for_str(newick);
+    let mut newick_parser = NewickParser::new_compact_defaults()
+        .with_num_leaves(3)
+        .with_annotations();
+    let tree = newick_parser.parse_str(&mut parser).unwrap();
+
+    let annots = tree.annotations().expect("Expected annotations");
+
+    // Build order: A=0, B=1, internal(A,B)=2, C=3, root=4
+    let rate_a = annots.get("rate", 0);
+    let rate_b = annots.get("rate", 1);
+    let rate_c = annots.get("rate", 3);
+
+    assert!(matches!(rate_a, Some(AnnotationValue::Float(v)) if (v - 0.5).abs() < 1e-10));
+    assert!(matches!(rate_b, Some(AnnotationValue::Float(v)) if (v - 0.8).abs() < 1e-10));
+    assert!(matches!(rate_c, Some(AnnotationValue::Float(v)) if (v - 1.2).abs() < 1e-10));
+}
+
+#[test]
+fn test_annotations_on_internal_and_root() {
+    let newick = "((A:1.0,B:2.0)[&height=3.0]:3.0,C:4.0)[&height=5.0];";
+    let mut parser = ByteParser::for_str(newick);
+    let mut newick_parser = NewickParser::new_compact_defaults()
+        .with_num_leaves(3)
+        .with_annotations();
+    let tree = newick_parser.parse_str(&mut parser).unwrap();
+
+    let annots = tree.annotations().expect("Expected annotations");
+
+    // Build order: A=0, B=1, internal(A,B)=2, C=3, root=4
+    let root = tree.root();
+    let (internal_idx, _) = root.children().unwrap();
+
+    let height_internal = annots.get("height", internal_idx);
+    let height_root = annots.get("height", root.index());
+
+    assert!(matches!(height_internal, Some(AnnotationValue::Float(v)) if (v - 3.0).abs() < 1e-10));
+    assert!(matches!(height_root, Some(AnnotationValue::Float(v)) if (v - 5.0).abs() < 1e-10));
+}
+
+#[test]
+fn test_annotations_multiple_keys() {
+    let newick =
+        "((A[&rate=0.5,pop=100]:1.0,B[&rate=0.8,pop=200]:2.0):3.0,C[&rate=1.2,pop=300]:4.0);";
+    let mut parser = ByteParser::for_str(newick);
+    let mut newick_parser = NewickParser::new_compact_defaults()
+        .with_num_leaves(3)
+        .with_annotations();
+    let tree = newick_parser.parse_str(&mut parser).unwrap();
+
+    let annots = tree.annotations().expect("Expected annotations");
+
+    assert!(
+        matches!(annots.get("rate", 0), Some(AnnotationValue::Float(v)) if (v - 0.5).abs() < 1e-10)
+    );
+    assert!(matches!(
+        annots.get("pop", 0),
+        Some(AnnotationValue::Int(100))
+    ));
+    assert!(matches!(
+        annots.get("pop", 1),
+        Some(AnnotationValue::Int(200))
+    ));
+    assert!(matches!(
+        annots.get("pop", 3),
+        Some(AnnotationValue::Int(300))
+    ));
+}
+
+#[test]
+fn test_annotations_string_value() {
+    let newick = "((A[&clade=mammals]:1.0,B[&clade=mammals]:2.0):3.0,C[&clade=birds]:4.0);";
+    let mut parser = ByteParser::for_str(newick);
+    let mut newick_parser = NewickParser::new_compact_defaults()
+        .with_num_leaves(3)
+        .with_annotations();
+    let tree = newick_parser.parse_str(&mut parser).unwrap();
+
+    let annots = tree.annotations().expect("Expected annotations");
+
+    assert!(
+        matches!(annots.get("clade", 0), Some(AnnotationValue::String(ref s)) if s == "mammals")
+    );
+    assert!(matches!(annots.get("clade", 3), Some(AnnotationValue::String(ref s)) if s == "birds"));
+}
+
+#[test]
+fn test_no_annotations_when_disabled() {
+    let newick = "((A[&rate=0.5]:1.0,B[&rate=0.8]:2.0):3.0,C[&rate=1.2]:4.0);";
+    let mut parser = ByteParser::for_str(newick);
+    let mut newick_parser = NewickParser::new_compact_defaults().with_num_leaves(3);
+    // annotations NOT enabled — [&...] treated as comments
+    let tree = newick_parser.parse_str(&mut parser).unwrap();
+
+    assert!(tree.annotations().is_none());
+}
+
+#[test]
+fn test_no_annotations_returns_none() {
+    let newick = "((A:1.0,B:2.0):3.0,C:4.0);";
+    let mut parser = ByteParser::for_str(newick);
+    let mut newick_parser = NewickParser::new_compact_defaults()
+        .with_num_leaves(3)
+        .with_annotations();
+    let tree = newick_parser.parse_str(&mut parser).unwrap();
+
+    // Annotations enabled but tree has none
+    assert!(tree.annotations().is_none());
 }

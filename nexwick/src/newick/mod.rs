@@ -41,9 +41,9 @@
 //!
 //! For an internal vertex and the root:
 //! * (children) \[annotation\] \[branch_length\]
-//!   - Example: (A,B\[@pop_seize=0.345\]:6.7
+//!   - Example: (A,B\[@pop_size=0.345\]:6.7
 //!
-//! These are considered comments for now and skipped.
+//! By default, they are not parsed, considered comments and thus skipped.
 
 mod defs;
 pub mod parser;

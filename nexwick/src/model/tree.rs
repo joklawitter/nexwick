@@ -7,6 +7,7 @@
 //! * [SimpleTree] as realization with [String]
 //! * [VertexIndex] as type used to index vertices in tree
 
+use crate::model::annotation::{AnnotationValue, Annotations};
 use crate::model::leaf_label_map::{LabelIndex, LeafLabelMap};
 use crate::model::vertex::{BranchLength, Vertex};
 use crate::newick;
@@ -23,10 +24,10 @@ pub type VertexIndex = usize;
 /// *During construction only*, index for unset root.
 const NO_ROOT_SET_INDEX: VertexIndex = usize::MAX;
 
-// =$========================================================================$=
+// =#========================================================================#=
 // TREE
-// =$========================================================================$=
-/// A binary phylogenetic tree represented using the arena pattern
+// =#========================================================================$=
+/// A rooted binary phylogenetic tree represented using the arena pattern
 /// on [Vertex].
 ///
 /// Vertices are stored in a contiguous vector and referenced by
@@ -63,6 +64,9 @@ pub struct GenTree<L> {
 
     /// Name of tree; optional, e.g. when parsed from Nexus file
     name: Option<String>,
+
+    /// Annotation data
+    annotations: Option<Box<Annotations>>,
 }
 
 // Convenient type aliases
@@ -88,6 +92,7 @@ impl<L> GenTree<L> {
             name: None,
             root_index: NO_ROOT_SET_INDEX,
             vertices: Vec::with_capacity(capacity),
+            annotations: None,
         }
     }
 
@@ -174,6 +179,48 @@ impl<L> GenTree<L> {
         self.vertices
             .push(Vertex::new_leaf(index, branch_length, label));
         index
+    }
+
+    /// Adds an annotation value for a specific vertex.
+    ///
+    /// # Arguments
+    /// * `key` - Annotation name (e.g. "pop_size", "rate")
+    /// * `vertex_index` - Index of the vertex to annotate
+    /// * `value` - The [AnnotationValue] to store
+    ///
+    /// # Panics
+    /// Panics if `vertex_index` is out of bounds.
+    pub fn add_annotation(
+        &mut self,
+        key: String,
+        vertex_index: VertexIndex,
+        value: AnnotationValue,
+    ) {
+        let annotations = self.annotations.get_or_insert_with(|| {
+            let num_vertices = self.vertices.capacity().max(self.vertices.len());
+            Box::new(Annotations::new(num_vertices))
+        });
+        annotations.add(key, vertex_index, value);
+    }
+
+    /// Returns a reference to the annotations, if any.
+    pub fn annotations(&self) -> Option<&Annotations> {
+        self.annotations.as_deref()
+    }
+
+    /// Returns a single annotation value for a vertex.
+    pub fn annotation(&self, key: &str, vertex_index: VertexIndex) -> Option<AnnotationValue> {
+        self.annotations.as_deref()?.get(key, vertex_index)
+    }
+
+    /// Returns all values for an annotation key (one per vertex).
+    pub fn annotations_for_key(&self, key: &str) -> Option<&Vec<Option<AnnotationValue>>> {
+        self.annotations.as_deref()?.get_all_for_key(key)
+    }
+
+    /// Returns whether this tree has annotations.
+    pub fn has_annotations(&self) -> bool {
+        self.annotations.is_some()
     }
 
     /// Returns reference to name of this tree, or `None` if not set.
@@ -583,9 +630,9 @@ impl CompactTree {
     }
 }
 
-// =$========================================================================$=
+// =#========================================================================#=
 // ITERATORS
-// =$========================================================================$=
+// =#========================================================================$=
 impl<L> GenTree<L> {
     /// Returns an iterator over the tree in post-order (children before parents).
     ///

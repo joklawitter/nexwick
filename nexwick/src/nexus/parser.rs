@@ -3,12 +3,12 @@
 //! This module provides the [NexusParserBuilder] and [NexusParser] structs,
 //! which offers methods to parse Nexus files with different configurations.
 
-use std::any::Any;
 use crate::model::label_storage::LabelStorage;
 use crate::model::tree_builder::TreeBuilder;
 use crate::model::{CompactTreeBuilder, LabelResolver};
 use crate::newick::NewickParser;
 use crate::nexus::defs::*;
+use crate::nexus::parser::ReadStrategy::Automatic;
 use crate::parser::buffered_byte_source::BufferedByteSource;
 use crate::parser::byte_parser::{ByteParser, ConsumeMode::*};
 use crate::parser::byte_source::ByteSource;
@@ -16,7 +16,6 @@ use crate::parser::in_memory_byte_source::InMemoryByteSource;
 use crate::parser::parsing_error::ParsingError;
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
-use crate::nexus::parser::ReadStrategy::Automatic;
 
 // =#========================================================================#=
 // PARSING MODE
@@ -108,8 +107,9 @@ pub enum ReadStrategy {
     /// Load the entire file into a contiguous byte buffer before parsing.
     InMemory,
 
-    /// Automatically choose between [Buffered] and [InMemory] based on
-    /// file size. This is the default.
+    /// Automatically choose between [ReadStrategy::Buffered] and
+    /// [ReadStrategy::InMemory] based on file size.
+    /// This is the default.
     Automatic,
 }
 
@@ -145,6 +145,10 @@ pub enum ReadStrategy {
 ///   - [`with_burnin()`](NexusParserBuilder::with_burnin)
 ///     — Skip a fixed count or percentage
 ///
+/// * **Annotations**: Parse vertex annotations instead of treating them as comments
+///   - [`with_annotations()`](Self::with_annotations)
+///     — Enable parsing of `[&key=value,...]` blocks
+///
 /// # Example
 /// ```no_run
 /// use nexwick::nexus::{NexusParserBuilder, Burnin};
@@ -167,6 +171,7 @@ pub struct NexusParserBuilder<T: TreeBuilder> {
     read_strategy: ReadStrategy,
     burnin: Burnin,
     skip_first: bool,
+    parse_annotations: bool,
     tree_builder: T,
 }
 
@@ -210,6 +215,7 @@ impl NexusParserBuilder<CompactTreeBuilder> {
             read_strategy: Automatic,
             burnin: Burnin::Count(0),
             skip_first: false,
+            parse_annotations: false,
             tree_builder: CompactTreeBuilder::new(),
         })
     }
@@ -349,6 +355,13 @@ impl<T: TreeBuilder> NexusParserBuilder<T> {
         self
     }
 
+    /// Configure the parser to parse vertex annotations
+    /// (e.g. `[&rate=0.5,pop_size=1.2]`) instead of treating them as comments.
+    pub fn with_annotations(mut self) -> Self {
+        self.parse_annotations = true;
+        self
+    }
+
     /// Configure the parser to read the file using a **buffered reader**.
     ///
     /// The file is read in chunks through a buffered I/O reader, keeping
@@ -408,6 +421,7 @@ impl<T: TreeBuilder> NexusParserBuilder<T> {
             read_strategy: self.read_strategy,
             burnin: self.burnin,
             skip_first: self.skip_first,
+            parse_annotations: self.parse_annotations,
             tree_builder,
         }
     }
@@ -460,18 +474,19 @@ impl<T: TreeBuilder> NexusParserBuilder<T> {
             ReadStrategy::Buffered => true,
             ReadStrategy::InMemory => false,
             ReadStrategy::Automatic => {
-                let file_size = std::fs::metadata(&self.path)
-                    .map(|m| m.len())
-                    .unwrap_or(0);
+                let file_size = std::fs::metadata(&self.path).map(|m| m.len()).unwrap_or(0);
                 file_size >= AUTO_IN_MEMORY_THRESHOLD
             }
         };
+
+        let mut newick_parser = NewickParser::new(self.tree_builder);
+        newick_parser.set_parse_annotations(self.parse_annotations);
 
         if use_buffered {
             let byte_parser = ByteParser::from_file_buffered(&self.path)?;
             let mut inner = NexusParserInner {
                 mode: self.mode,
-                newick_parser: NewickParser::new(self.tree_builder),
+                newick_parser,
                 byte_parser,
                 num_leaves: 0,
                 num_total_trees: 0,
@@ -487,7 +502,7 @@ impl<T: TreeBuilder> NexusParserBuilder<T> {
             let byte_parser = ByteParser::from_file_in_memory(&self.path)?;
             let mut inner = NexusParserInner {
                 mode: self.mode,
-                newick_parser: NewickParser::new(self.tree_builder),
+                newick_parser,
                 byte_parser,
                 num_leaves: 0,
                 num_total_trees: 0,
@@ -574,8 +589,11 @@ impl<T: TreeBuilder> NexusParserBuilder<T> {
 ///
 /// # Ok::<(), Box<dyn std::error::Error>>(())
 /// ```
+#[allow(private_interfaces)]
 pub enum NexusParser<T: TreeBuilder> {
+    /// NexusParser with buffered file read
     Buffered(NexusParserInner<BufferedByteSource, T>),
+    /// Nexus Parser with in-memory file read
     InMemory(NexusParserInner<InMemoryByteSource, T>),
 }
 

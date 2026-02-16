@@ -28,7 +28,7 @@
 //! Limitations:
 //! - Only binary trees
 //! - Only leaf-labels considered
-//! - Additional vertex data not considered yet
+//! - Trees always considered rooted
 //!
 //! # Usage patterns
 //! Can parse files in two main ways:

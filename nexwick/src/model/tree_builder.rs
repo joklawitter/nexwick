@@ -40,12 +40,12 @@
 //!   └────────────────────────────────────────────────────────────────────────┘
 //! ```
 // Imports for doc links
+use crate::model::annotation::AnnotationValue;
+use crate::model::label_storage::LabelStorage;
 #[allow(unused_imports)]
 use crate::model::{
     CompactTree, CompactTreeBuilder, LabelResolver, LeafLabelMap, SimpleTree, SimpleTreeBuilder,
 };
-
-use crate::model::label_storage::LabelStorage;
 
 // =#========================================================================#=
 // TREE BUILDER (trait)
@@ -129,6 +129,9 @@ pub trait TreeBuilder {
     /// # Arguments
     /// * `branch_len` — Branch length to parent, if specified in Newick string
     /// * `label` — Label reference obtained from the [LabelStorage]
+    ///
+    /// # Returns
+    /// The vertex index of the new leaf.
     fn add_leaf(&mut self, branch_len: Option<f64>, label: Self::LabelRef) -> Self::VertexIdx;
 
     /// Adds an internal (non-root) vertex with two children.
@@ -142,6 +145,9 @@ pub trait TreeBuilder {
     /// # Arguments
     /// * `children` — Indices of the left and right child vertices
     /// * `branch_len` — Branch length to parent, if specified in Newick string
+    ///
+    /// # Returns
+    /// The vertex index of the new internal vertex.
     fn add_internal(
         &mut self,
         children: (Self::VertexIdx, Self::VertexIdx),
@@ -157,11 +163,22 @@ pub trait TreeBuilder {
     /// # Arguments
     /// * `children` — Indices of the root's two child vertices
     /// * `branch_len` — Root branch length (rare, but allowed in Newick)
+    ///
+    /// # Returns
+    /// The vertex index of the root.
     fn add_root(
         &mut self,
         children: (Self::VertexIdx, Self::VertexIdx),
         branch_len: Option<f64>,
     ) -> Self::VertexIdx;
+
+    /// Adds an annotation for a vertex. Default implementation ignores it.
+    ///
+    /// # Arguments
+    /// * `key` - Annotation name (e.g. "rate", "height")
+    /// * `vertex_idx` - Index of the vertex to annotate
+    /// * `value` - The [AnnotationValue] to store
+    fn add_annotation(&mut self, key: String, vertex_idx: Self::VertexIdx, value: AnnotationValue);
 
     /// Sets the name of the currently constructed tree.
     ///

@@ -1,5 +1,6 @@
 //! Provides [TreeBuilder] implementation structs for [SimpleTree].
 
+use crate::model::annotation::AnnotationValue;
 use crate::model::label_storage::LabelStorage;
 use crate::model::tree_builder::TreeBuilder;
 use crate::model::vertex::BranchLength;
@@ -66,6 +67,11 @@ impl TreeBuilder for SimpleTreeBuilder {
     ) -> Self::VertexIdx {
         let tree = self.current_tree.as_mut().expect("init not called");
         tree.add_root(children, branch_len.map(BranchLength::new))
+    }
+
+    fn add_annotation(&mut self, key: String, vertex_idx: Self::VertexIdx, value: AnnotationValue) {
+        let tree = self.current_tree.as_mut().expect("init not called");
+        tree.add_annotation(key, vertex_idx, value)
     }
 
     fn set_name(&mut self, tree_name: String) {

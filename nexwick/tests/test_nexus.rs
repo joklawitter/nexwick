@@ -275,3 +275,21 @@ fn test_lazy_mode_reset_with_burnin() {
         first_tree_again.to_newick(&NewickStyle::ZeroIndexed, None)
     );
 }
+
+#[test]
+fn test_with_annotations() {
+    let path = Path::new("tests")
+        .join("fixtures")
+        .join("nexus_aars_t5_n142_annotation.trees");
+
+    let mut parser = NexusParserBuilder::for_file(path)
+        .unwrap()
+        .lazy()
+        .with_annotations()
+        .build()
+        .unwrap();
+
+    while let Some(tree) = parser.next_tree().unwrap() {
+        assert!(tree.annotations().is_some());
+    }
+}
