@@ -105,7 +105,7 @@ fn test_vertex_access() {
 
     // vertex_mut() allows modification - we can't change much, but we can access it
     let leaf_mut = tree.vertex_mut(0);
-    leaf_mut.set_parent(leaf_mut.parent_index().unwrap());
+    leaf_mut.set_parent(leaf_mut.parent().unwrap());
     assert!(leaf_mut.is_leaf());
 }
 

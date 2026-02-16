@@ -44,15 +44,15 @@ fn test_nonleaf_vertex_has_no_label() {
 #[test]
 fn test_parent_unset() {
     let vertex: Vertex<LabelIndex> = Vertex::new_internal(0, (1, 2), Some(BranchLength::new(0.5)));
-    assert_eq!(vertex.parent_index(), None);
+    assert_eq!(vertex.parent(), None);
     assert!(!vertex.has_parent());
 
     let leaf: Vertex<LabelIndex> = Vertex::new_leaf(0, Some(BranchLength::new(0.5)), 0);
-    assert_eq!(leaf.parent_index(), None);
+    assert_eq!(leaf.parent(), None);
     assert!(!leaf.has_parent());
 
     let root: Vertex<LabelIndex> = Vertex::new_root_without_branch(2, (42, 42));
-    assert_eq!(root.parent_index(), None);
+    assert_eq!(root.parent(), None);
 }
 
 #[test]

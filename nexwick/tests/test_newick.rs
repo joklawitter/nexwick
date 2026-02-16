@@ -42,10 +42,10 @@ fn test_basic_compact_tree() {
     assert!(leaf_c.is_leaf());
 
     // - Parent relationships
-    assert_eq!(internal.parent_index(), Some(root_index));
-    assert_eq!(leaf_a.parent_index(), Some(root_left));
-    assert_eq!(leaf_b.parent_index(), Some(root_left));
-    assert_eq!(leaf_c.parent_index(), Some(root_index));
+    assert_eq!(internal.parent(), Some(root_index));
+    assert_eq!(leaf_a.parent(), Some(root_left));
+    assert_eq!(leaf_b.parent(), Some(root_left));
+    assert_eq!(leaf_c.parent(), Some(root_index));
 }
 
 #[test]
@@ -204,7 +204,7 @@ fn test_invalid_branch_length() {
 fn test_parsing_newick_file() {
     let path = Path::new("tests")
         .join("fixtures")
-        .join("newick_t4_n10.nwk");
+        .join("newick_t3_n10.nwk");
     let (trees, leaf_map) = parse_file(path).unwrap();
 
     assert_eq!(trees.len(), 3);

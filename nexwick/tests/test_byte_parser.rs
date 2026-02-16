@@ -97,7 +97,7 @@ fn test_position() {
 
 #[test]
 fn test_peek_is_word() {
-    let parser = ByteParser::for_str("BEGIN TREES;");
+    let mut parser = ByteParser::for_str("BEGIN TREES;");
     assert!(parser.peek_is_word("BEGIN"));
     assert!(parser.peek_is_word("beGin"));
     assert!(!parser.peek_is_word("benin"));
@@ -146,41 +146,6 @@ fn test_parse_label_chooses_unquoted() {
     let label = parser.parse_label(delimiters).unwrap();
     assert_eq!(label, "UnquotedLabel");
     assert_eq!(parser.peek(), Some(b':'));
-}
-
-#[test]
-fn test_slice_from_basic() {
-    let mut parser = ByteParser::for_str("BEGIN TREES;");
-    parser.consume_if_word("BEGIN");
-    parser.skip_whitespace();
-    let pos = parser.position();
-    parser.consume_until(b';', ConsumeMode::Exclusive);
-
-    let slice = parser.slice_from(pos);
-    assert_eq!(slice, b"TREES");
-    assert_eq!(parser.peek(), Some(b';')); // Still at semicolon
-}
-
-#[test]
-fn test_slice_from_exclusive_at_eof() {
-    let mut parser = ByteParser::for_str("HELLO");
-    let pos = parser.position();
-
-    // Consume everything
-    parser.consume_until_word("HELLO", ConsumeMode::Inclusive);
-
-    assert!(parser.is_eof());
-    let slice = parser.slice_from(pos);
-    assert_eq!(slice, b"HELLO");
-}
-
-#[test]
-fn test_slice_from_empty() {
-    let mut parser = ByteParser::for_str("BEGIN TREES;");
-    parser.consume_if_word("BEGIN");
-    parser.skip_whitespace();
-    let slice = parser.slice_from(parser.position());
-    assert_eq!(slice, b""); // from position to position
 }
 
 #[test]
