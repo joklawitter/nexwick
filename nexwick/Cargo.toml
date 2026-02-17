@@ -1,6 +1,6 @@
 [package]
 name = "nexwick"
-version = "0.1.0"
+version = "0.1.1"
 authors = ["Jonathan Klawitter"]
 edition = "2024"
 license = "MIT OR Apache-2.0"
