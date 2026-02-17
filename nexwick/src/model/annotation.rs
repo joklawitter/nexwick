@@ -1,4 +1,4 @@
-//! Vertex annotations for phylogenetic trees.
+//! Provides [Annotations] for vertices in phylogenetic trees.
 //!
 //! Provides the [Annotations] struct, which can store parsed annotation values
 //! for vertices based on their indices. Supported values captured by
@@ -11,7 +11,8 @@ use std::string::String;
 // =#========================================================================#=
 // ANNOTATION
 // =#========================================================================$=
-/// Vertex annotations for multiple keys
+/// Vertex annotations for multiple keys (e.g. "pop", "rate") as arena
+/// with same index as in respective tree.
 #[derive(Debug, Clone)]
 pub struct Annotations {
     annotations: HashMap<String, Vec<Option<AnnotationValue>>>,

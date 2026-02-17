@@ -46,6 +46,7 @@ pub use tree::GenTree;
 pub use tree::VertexIndex;
 pub use tree_builder::TreeBuilder;
 pub use vertex::Vertex;
+pub use annotation::{Annotations, AnnotationValue};
 // Compact tree
 pub use compact_tree_builder::CompactTreeBuilder;
 pub use leaf_label_map::LabelIndex;

@@ -156,6 +156,7 @@ pub enum ReadStrategy {
 /// // Parse a NEXUS file with 10% burnin, eagerly loading all trees
 /// let mut parser = NexusParserBuilder::for_file("passeriformes.trees")?
 ///     .with_burnin(Burnin::Percentage(0.1))
+///     .with_annotations()
 ///     .eager()
 ///     .build()?;
 ///
@@ -553,8 +554,8 @@ impl<T: TreeBuilder> NexusParserBuilder<T> {
 /// # Tree Retrieval
 ///
 /// **Eager mode** (default, trees pre-parsed and stored):
-/// * [next_tree_ref()](Self::next_tree_ref) — Iterate by reference (no cloning)
-/// * [into_results()](Self::into_results) — Consume and get all trees
+/// * [`next_tree_ref()`](Self::next_tree_ref) — Iterate by reference (no cloning)
+/// * [`into_results()`](Self::into_results) — Consume and get all trees
 ///
 /// ```no_run
 /// use nexwick::nexus::{NexusParserBuilder, Burnin};

@@ -45,6 +45,7 @@ const NO_ROOT_SET_INDEX: VertexIndex = usize::MAX;
 /// - Leaves handle labels via their label reference type `L`,
 ///   e.g. implementation [CompactTree] pointing into a shared [LeafLabelMap].
 /// - Branch lengths are optional, but if provided must be non-negative.
+/// - Annotations are stored in the tree, accessed via key and vertex index.
 ///
 /// # Construction
 /// To construct a tree, specify its size based on the number of leaves,
